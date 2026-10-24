@@ -133,6 +133,7 @@ canvas.ruler{cursor:crosshair}
         <button class="chip act" type="button" id="storageBtn" hidden>Открыть кладовую</button>
         <button class="chip act" type="button" id="moveBtn" hidden>Двигать мебель</button>
         <button class="chip act" type="button" id="islandBtn" hidden>Скрыть остров</button>
+        <button class="chip act" type="button" id="chairsBtn" hidden>Задвинуть стулья</button>
         <button class="chip act" type="button" id="rulerBtn">Линейка</button>
         <button class="chip act" type="button" id="rulerClr" hidden>Очистить замеры</button>
         <button class="chip act" type="button" id="rotBtn" hidden>Повернуть на 15°</button>
@@ -547,7 +548,7 @@ ROOMS.living={name:'Кухня-гостиная',area:'32,5 м²',H:2.95,poly:RO
   const tcm=m(TC);B.box('oak','a',tcm[0],tcm[1],1.2,0.8,120,0.72,0.75,{bottom:true});
   for(const[i,j]of[[-1,-1],[1,-1],[1,1],[-1,1]]){const p=[i*0.52*E_[0]+j*0.32*(-Mn[0]),i*0.52*E_[1]+j*0.32*(-Mn[1])];B.box('graphite','a',tcm[0]+p[0],tcm[1]+p[1],0.04,0.04,120,0,0.72)}
   B.blob(tcm[0],tcm[1],1.6,1.2,120);B.cyl('ceramic','a',tcm[0],tcm[1],0.09,0.75,0.95,18);
-  [[-870,0],[0,650],[0,-650],[870,0]].forEach(([du,dv])=>{const c=[TC[0]+du*E_[0]-dv*Mn[0],TC[1]+du*E_[1]-dv*Mn[1]];chair(B,c[0]/1000,c[1]/1000,tcm,{seat:'fabOat'})});
+  (chairsIn?[[-640,0],[0,440],[0,-440],[640,0]]:[[-870,0],[0,650],[0,-650],[870,0]]).forEach(([du,dv])=>{const c=[TC[0]+du*E_[0]-dv*Mn[0],TC[1]+du*E_[1]-dv*Mn[1]];chair(B,c[0]/1000,c[1]/1000,tcm,{seat:'fabOat'})});
   pendant(B,tcm[0],tcm[1],H,1.62,0.17,'opal');B.light([tcm[0],1.5,tcm[1]],'#FFE2B8',0.22);B.obj=null;B.zone='living';
   art(B,R,[20450,8260],[19560,9810],1.25,2.15,'art1');
   // --- track (living) white
@@ -563,7 +564,7 @@ ROOMS.living={name:'Кухня-гостиная',area:'32,5 м²',H:2.95,poly:RO
    B.prism('plinth','a',mp(krect(76,1562,2,18)),0.1,0.87,{top:false});
    if(kst)[-373,227].forEach(u=>B.prism('handle','a',mp(krect(u,1562,300,18)),0.8,0.816));
    B.blob(17.55,10.25,1.5,0.9,30);
-   [[-223,2700],[377,2700]].forEach(([u,v])=>{const c=m(kpt(u,v));B.cyl('oak','a',c[0],c[1],0.19,0.63,0.67,22,{bottom:true});B.cyl('graphite','a',c[0],c[1],0.022,0.03,0.63,10);
+   [[-223,chairsIn?2390:2700],[377,chairsIn?2390:2700]].forEach(([u,v])=>{const c=m(kpt(u,v));B.cyl('oak','a',c[0],c[1],0.19,0.63,0.67,22,{bottom:true});B.cyl('graphite','a',c[0],c[1],0.022,0.03,0.63,10);
     B.cyl('graphite','a',c[0],c[1],0.2,0.0,0.03,22);B.cyl('graphite','a',c[0],c[1],0.17,0.26,0.275,22);B.blob(c[0],c[1],0.55,0.55,0)});
    [[-223,1880],[377,1880]].forEach(([u,v])=>{const q=m(kpt(u,v));pendant(B,q[0],q[1],H,1.72,0.12)});B.light([17.588,1.6,10.245],'#FFE2B8',0.28);B.obj=null}
   // ===== kitchen v16 =====
@@ -1051,6 +1052,7 @@ const IDENT=[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1];
 const FURN0={sofa:{x:0,z:0,a:0},dining:{x:0,z:0,a:0},island:{x:0,z:0,a:0}};let FURN=JSON.parse(JSON.stringify(FURN0));
 try{const f=JSON.parse(localStorage.getItem('koncept-furn')||'null');if(f&&typeof f==='object')for(const k in FURN0)if(f[k])FURN[k]=f[k]}catch(e){}
 let showIsland=true;try{showIsland=localStorage.getItem('koncept-island')!=='0'}catch(e){}
+let chairsIn=false;try{chairsIn=localStorage.getItem('koncept-chairs')==='1'}catch(e){}
 const saveFurn=()=>{try{localStorage.setItem('koncept-furn',JSON.stringify(FURN))}catch(e){}};
 let moveMode=false,selObj=null;
 function objPivot(id){const b=scene&&scene.objs[id];if(!b)return[0,0];return rotF((b.mn[0]+b.mx[0])/2,(b.mn[2]+b.mx[2])/2,-(OBJ_BASE[id]||0))}
@@ -1230,7 +1232,7 @@ function rebuildKeep(){const c={eye:cam.eye,target:cam.target,fov:cam.fov,near:c
 const mvBtn=document.getElementById('moveBtn'),rotBtn=document.getElementById('rotBtn'),rsBtn=document.getElementById('resetBtn'),hintEl=document.getElementById('hint'),hint0=hintEl.textContent;
 function updMoveUI(){const vis=scene&&(scene.key==='living'||scene.key==='all');mvBtn.hidden=!vis;mvBtn.textContent=moveMode?'Готово':'Двигать мебель';rotBtn.hidden=!(vis&&moveMode&&selObj);rsBtn.hidden=!(vis&&moveMode);
  rotBtn.textContent='Повернуть '+({sofa:'диван',dining:'обеденную группу',island:'остров'}[selObj]||'')+' на 15°';hintEl.textContent=moveMode?'Тяните диван, обеденную группу или остров · красным — проход меньше 90 см':hint0;
- isBtn.hidden=!vis;isBtn.textContent=showIsland?'Скрыть остров':'Показать остров'}
+ isBtn.hidden=!vis;isBtn.textContent=showIsland?'Скрыть остров':'Показать остров';chBtn.hidden=!vis;chBtn.textContent=chairsIn?'Выдвинуть стулья':'Задвинуть стулья'}
 const lmEl=document.getElementById('lmodes'),dtEl=document.getElementById('dates'),todEl=document.getElementById('tod'),todLbl=document.getElementById('todLbl'),sunEl=document.getElementById('sunInfo');
 const LMODES=[['all','Весь свет'],['main','Только основной'],['acc','Только подсветка'],['night','Ночники'],['off','Выключить всё']];
 const fmtT=t=>{const h=Math.floor(t+1e-6)%24,mi=Math.round((t-Math.floor(t+1e-6))*60);return h+':'+String(mi===60?0:mi).padStart(2,'0')};
@@ -1257,6 +1259,7 @@ const shBtn=document.getElementById('shadeBtn');shBtn.onclick=()=>{shadeMode=!sh
  if(shadeMode){const t=viewFor({top:1});Object.assign(cam,t);cam.anim=null;document.getElementById('viewname').textContent='Сверху: солнце и тени';[...document.querySelectorAll('#views .chip')].forEach(c=>c.setAttribute('aria-pressed','false'))}draw()};
 window.__shade=()=>shBtn.click();
 window.__day=(d,t,mode)=>{if(d)dayDate=d;if(t!==undefined)dayT=t;if(mode)ZST=presetZ(mode);updDayUI();draw()};window.__zone=(z,v)=>{ZST[z]=v;updDayUI();draw()};
+const chBtn=document.getElementById('chairsBtn');chBtn.onclick=()=>{chairsIn=!chairsIn;try{localStorage.setItem('koncept-chairs',chairsIn?'1':'0')}catch(e){}rebuildKeep();updMoveUI()};window.__chairs=()=>chBtn.click();
 const isBtn=document.getElementById('islandBtn');isBtn.onclick=()=>{showIsland=!showIsland;try{localStorage.setItem('koncept-island',showIsland?'1':'0')}catch(e){}if(!showIsland&&selObj==='island')selObj=null;rebuildKeep();updMoveUI()};
 const rBtn=document.getElementById('rulerBtn'),rClr=document.getElementById('rulerClr');
 function updRulerUI(){rBtn.textContent=rulerMode?'Выйти из линейки':'Линейка';rClr.hidden=!(rulerLines.length||rulerPts.length);canvas.classList.toggle('ruler',rulerMode);
