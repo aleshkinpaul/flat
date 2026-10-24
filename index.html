@@ -101,6 +101,9 @@ aside h2{font-family:var(--f-display);font-weight:400;font-size:28px;line-height
         <div class="views" id="views"></div>
         <button class="chip act" type="button" id="laundryBtn" hidden>Открыть постирочную</button>
         <button class="chip act" type="button" id="storageBtn" hidden>Открыть кладовую</button>
+        <button class="chip act" type="button" id="moveBtn" hidden>Двигать мебель</button>
+        <button class="chip act" type="button" id="rotBtn" hidden>Повернуть на 15°</button>
+        <button class="chip act" type="button" id="resetBtn" hidden>Вернуть расстановку</button>
         <button class="chip act" type="button" id="drenchBtn" hidden>Прихожая в одном цвете</button>
         <button class="chip act" type="button" id="doorsBtn" hidden>Открыть двери</button>
         <button class="chip act" type="button" id="matBtn">Показать материалы</button>
@@ -261,13 +264,13 @@ const MAT={
 
 /* ---------------- shader ---------------- */
 const VS=`#version 300 es
-in vec3 aP;in vec3 aN;in vec2 aU;uniform mat4 uVP;out vec3 vP;out vec3 vN;out vec2 vU;
-void main(){vP=aP;vN=aN;vU=aU;gl_Position=uVP*vec4(aP,1.);}`;
+in vec3 aP;in vec3 aN;in vec2 aU;uniform mat4 uVP;uniform mat4 uM;out vec3 vP;out vec3 vN;out vec2 vU;
+void main(){vec4 w=uM*vec4(aP,1.);vP=w.xyz;vN=mat3(uM)*aN;vU=aU;gl_Position=uVP*w;}`;
 const FS=`#version 300 es
 precision highp float;in vec3 vP;in vec3 vN;in vec2 vU;
 uniform vec3 uC;uniform sampler2D uT;uniform int uUT;uniform float uUV;uniform float uSp;uniform float uSh;uniform vec3 uEm;uniform int uEmT;uniform float uA;
 uniform int uMode;uniform int uUnlit;uniform int uGlass;uniform vec3 uEye;uniform vec3 uKD;uniform vec3 uKC;uniform vec3 uSky;uniform vec3 uGr;
-uniform vec3 uLP[12];uniform vec3 uLC[12];uniform int uNL;uniform float uH;uniform float uExp;out vec4 o;
+uniform vec3 uLP[12];uniform vec3 uLC[12];uniform int uNL;uniform float uH;uniform float uExp;uniform float uSel;out vec4 o;
 vec3 lin(vec3 c){return pow(c,vec3(2.2));}
 vec3 aces(vec3 x){return clamp((x*(2.51*x+.03))/(x*(2.43*x+.59)+.14),0.,1.);}
 void main(){vec4 t=uUT==1?texture(uT,vU*uUV):vec4(1.);
@@ -282,18 +285,18 @@ void main(){vec4 t=uUT==1?texture(uT,vU*uUV):vec4(1.);
   float ao=1.;if(abs(n.y)<.6){ao*=mix(.66,1.,smoothstep(0.,.55,vP.y));ao*=mix(.84,1.,smoothstep(0.,.45,uH-vP.y));}
   else if(n.y>.6&&vP.y<.02){ao*=.96;}
   c=alb*d*ao+sp;}
- c=aces(c*uExp);float a=uA*t.a;
+ c=aces(c*uExp);c=mix(c,vec3(.96,.62,.46),uSel*.22);float a=uA*t.a;
  if(uGlass==1){float f=pow(1.-max(dot(n,V),0.),3.);a=min(1.,a+f*.3);}
  o=vec4(pow(c,vec3(1./2.2)),a);}`;
 function sh(t,s){const x=gl.createShader(t);gl.shaderSource(x,s);gl.compileShader(x);if(!gl.getShaderParameter(x,gl.COMPILE_STATUS))throw new Error(gl.getShaderInfoLog(x));return x}
 const prog=gl.createProgram();gl.attachShader(prog,sh(gl.VERTEX_SHADER,VS));gl.attachShader(prog,sh(gl.FRAGMENT_SHADER,FS));gl.linkProgram(prog);
 if(!gl.getProgramParameter(prog,gl.LINK_STATUS))throw new Error(gl.getProgramInfoLog(prog));
-gl.useProgram(prog);const U={};['uVP','uC','uT','uUT','uUV','uSp','uSh','uEm','uEmT','uA','uMode','uUnlit','uGlass','uEye','uKD','uKC','uSky','uGr','uLP','uLC','uNL','uH','uExp'].forEach(k=>U[k]=gl.getUniformLocation(prog,k));
+gl.useProgram(prog);const U={};['uM','uSel','uVP','uC','uT','uUT','uUV','uSp','uSh','uEm','uEmT','uA','uMode','uUnlit','uGlass','uEye','uKD','uKC','uSky','uGr','uLP','uLC','uNL','uH','uExp'].forEach(k=>U[k]=gl.getUniformLocation(prog,k));
 
 /* ---------------- builder ---------------- */
-class Builder{constructor(){this.g=new Map();this.walls=[];this.lights=[];this.labels=[];}
- grp(mat,vis){if(vis==='c')vis='c'+this.curH;const k=mat+'|'+vis;if(!this.g.has(k))this.g.set(k,{mat,vis,d:[]});return this.g.get(k)}
- tri(mat,vis,a,b,c,n,ua,ub,uc){const d=this.grp(mat,vis).d;for(const[p,u]of[[a,ua],[b,ub],[c,uc]])d.push(p[0],p[1],p[2],n[0],n[1],n[2],u[0],u[1])}
+class Builder{constructor(){this.g=new Map();this.walls=[];this.lights=[];this.labels=[];this.obj=null;this.ob={};}
+ grp(mat,vis){if(vis==='c')vis='c'+this.curH;const k=mat+'|'+vis+'|'+(this.obj||'');if(!this.g.has(k))this.g.set(k,{mat,vis,obj:this.obj,d:[]});return this.g.get(k)}
+ tri(mat,vis,a,b,c,n,ua,ub,uc){const d=this.grp(mat,vis).d;if(this.obj&&mat!=='shadow'){const bb=this.ob[this.obj]||(this.ob[this.obj]={mn:[1e9,1e9,1e9],mx:[-1e9,-1e9,-1e9]});for(const q of[a,b,c])for(let i=0;i<3;i++){bb.mn[i]=Math.min(bb.mn[i],q[i]);bb.mx[i]=Math.max(bb.mx[i],q[i])}}for(const[p,u]of[[a,ua],[b,ub],[c,uc]])d.push(p[0],p[1],p[2],n[0],n[1],n[2],u[0],u[1])}
  quad(mat,vis,P,n,UV){let p=P,u=UV||[[0,0],[1,0],[1,1],[0,1]];const cr=V3.cross(V3.sub(p[1],p[0]),V3.sub(p[2],p[0]));
   if(V3.dot(cr,n)<0){p=[p[0],p[3],p[2],p[1]];u=[u[0],u[3],u[2],u[1]]}this.tri(mat,vis,p[0],p[1],p[2],n,u[0],u[1],u[2]);this.tri(mat,vis,p[0],p[2],p[3],n,u[0],u[2],u[3])}
  /* poly in metres [[x,z]] */
@@ -318,7 +321,7 @@ class Builder{constructor(){this.g=new Map();this.walls=[];this.lights=[];this.l
   this.quad(mat,vis,q.map(v=>[c[0]+v[0]*r,c[1]+v[1]*r*sy,c[2]+v[2]*r]),nn)}}
  blob(cx,cz,w,d,ang,k){const pts=rotRectM(cx,cz,w,d,ang);const P=pts.map(p=>[p[0],0.004,p[1]]);const g=this.grp('shadow'+(k?'k':''),'a');
   this.quad('shadow','a',P,[0,1,0],[[0,0],[1,0],[1,1],[0,1]])}
- light(p,c,k,win){const cc=hex(c).map(v=>v*k);this.lights.push({p,c:cc,win:!!win})}
+ light(p,c,k,win){const cc=hex(c).map(v=>v*k);this.lights.push({p,c:cc,win:!!win,obj:this.obj})}
 }
 function rotRectM(cx,cz,w,d,ang){const a=ang*Math.PI/180,dd=[Math.cos(a),Math.sin(a)],p=[-dd[1],dd[0]];
  return[[-1,-1],[1,-1],[1,1],[-1,1]].map(([i,j])=>[cx+i*w/2*dd[0]+j*d/2*p[0],cz+i*w/2*dd[1]+j*d/2*p[1]])}
@@ -432,15 +435,19 @@ const ROOM2_POLY=[[13568,7002],[13568,7302],[13488,7302],[12148,7940],[11948,828
 const TILE2=[[12148,7940],[16706,10572],[17143,9815],[18968,10870],[18783,11191],[19307,11494],[18517,12862],[18391,12790],[18277,12987],[16506,11965],[16653,11710],[16861,11350],[16272,11010],[16064,11370],[14832,10644],[14586,11071],[14419,11184],[13584,10489],[13511,10419],[13857,9820],[12792,9191],[12949,8872],[11948,8286]];
 const PARQ2=[[13568,7002],[13568,7302],[13488,7302],[12148,7940],[16706,10572],[17143,9815],[18968,10870],[21391,6637],[17990,6637],[17990,7002]];
 const ROOMS={};
-// +2.700 drop (ПТ-2) over the hall, as sheet 16: x 13488 down from the TV-wall end, then the drop edge with the FK-1 slot grille toward shaft K1
-const HALL_LOW=[[12148,7940],[15332,9778],[15022,10315],[14832,10644],[14586,11071],[14419,11184],[13584,10489],[13511,10419],[13857,9820],[12792,9191],[12949,8872],[11948,8286]];
-const LIV_HIGH=[[13568,7002],[13568,7302],[13488,7302],[12148,7940],[15332,9778],[15022,10315],[14832,10644],[16064,11370],[16272,11010],[16861,11350],[16653,11710],[16506,11965],[18277,12987],[18391,12790],[18517,12862],[19307,11494],[18783,11191],[21391,6637],[17990,6637],[17990,7002]];
-const HALL_LOW_M=HALL_LOW.map(p=>[p[0]/1000,p[1]/1000]);const ceilLiv=(x,z)=>pip([x,z],HALL_LOW_M)?2.70:2.95;
+// v16 ceilings: ГКЛ +2.650 over the hall (along the tile joint, stopped by the mirror wall) and along the whole kitchen perimeter
+// (over the tall units, the box at K1 with its bevel, and over the niche cabinets to their fronts); living stretch ceiling +2.950 fixed to the soffit frame
+const BEV=hpt(1690,600);          // start of the 30° bevel on the box front
+const HREG=[[12148,7940],[15332,9778],hpt(-80,600),BEV,[16861,11350],[16272,11010],[16064,11370],[14832,10644],[14586,11071],[14419,11184],[13584,10489],[13511,10419],[13857,9820],[12792,9191],[12949,8872],[11948,8286]];
+const NICHE=[kpt(0,600),kpt(1590,600),[18783,11191],[19307,11494],[18517,12862],[18391,12790],[18277,12987],[16506,11965],[16653,11710]];
+const LIV_HIGH=[[13568,7002],[13568,7302],[13488,7302],[12148,7940],[15332,9778],hpt(-80,600),BEV,[16861,11350],kpt(0,600),kpt(1590,600),[18783,11191],[21391,6637],[17990,6637],[17990,7002]];
+const DROP_EDGES=[[[13488,7302],[12148,7940],[15332,9778],hpt(-80,600),BEV,[16861,11350]],[kpt(0,600),kpt(1590,600),[18783,11191]]];
+const HREG_M=mp(HREG),NICHE_M=mp(NICHE);const ceilLiv=(x,z)=>(pip([x,z],HREG_M)||pip([x,z],NICHE_M))?2.65:2.95;
 
 ROOMS.living={name:'Кухня-гостиная',area:'32,5 м²',H:2.95,poly:ROOM2_POLY,
  wallMat:E=>{const mx=(E.a[0]+E.b[0])/2,mz=(E.a[1]+E.b[1])/2;if(mx>16.0&&mx<16.9&&mz>10.95&&mz<11.75)return'lower';if(mx<14.6&&mz>8.3)return'hall';return null},
  floors:[{poly:PARQ2,mat:'oakFloor'},{poly:TILE2,mat:'tileHall',rot:30,o:KW0}],
- ceilings:[{poly:HALL_LOW,H:2.70,note:'ГКЛ, прихожая',label:[13700,9350]},{poly:LIV_HIGH,H:2.95,note:'натяжной'}],
+ ceilings:[{poly:HREG,H:2.65,note:'ГКЛ, прихожая',label:[13700,9350]},{poly:NICHE,H:2.65,note:'над кухней',label:kpt(900,300)},{poly:LIV_HIGH,H:2.95,note:'натяжной',label:[18200,8700]}],
  open:[[[13488,7302],[12148,7940]]],
  windows:[{p0:[18298,6637],p1:[20668,6637],sill:600,top:2600,bench:1,curtainBottom:0.61}],
  key:{d:[0.15,-0.75,0.65],c:'#FFF6EA',k:0.55},
@@ -454,7 +461,8 @@ ROOMS.living={name:'Кухня-гостиная',area:'32,5 м²',H:2.95,poly:RO
   for(const y of[0.5,0.95,1.4,1.85,2.42])for(const x0 of[13.59,17.195])B.box('glowSoft',vTV,x0+0.38,7.27,0.74,0.012,0,y-0.006,y-0.001);
   B.prism('oak','a',mp(rect2(14368,7022,17174,7302)),0.22,0.52,{bottom:true});
   B.box('graphite','a',15.77,7.035,1.23,0.03,0,0.92,1.63);B.box('black','a',15.77,7.052,1.2,0.004,0,0.935,1.615);
-  // --- sofa (L), cushions, rug
+  // --- sofa (L), cushions, rug — movable object
+  B.obj='sofa';
   const SOFA=mp([[14344,8464],[16249,9564],[17049,8179],[16269,7729],[15919,8335],[14794,7685]]);
   B.flat('rug','a',mp(rotRect(15650,8350,2600,1900,0)),0.006,true);B.blob(15.65,8.35,2.8,2.1,0);
   B.prism('fabGrey','a',SOFA,0.1,0.44,{});B.box('graphite','a',15.6,8.6,2.0,0.5,30,0,0.1);
@@ -462,81 +470,87 @@ ROOMS.living={name:'Кухня-гостиная',area:'32,5 м²',H:2.95,poly:RO
   B.prism('fabGrey','a',back1,0.44,0.82);B.prism('fabGrey','a',back2,0.44,0.82);
   B.box('fabOat','a',14.62,8.12,0.18,0.92,30,0.44,0.66);
   [[15.05,8.62,'terra',30],[15.55,8.9,'fabLinen',30],[16.45,9.0,'olive',-60]].forEach(([x,z,mt,a])=>B.box(mt,'a',x,z,0.45,0.14,a,0.46,0.86));
-  B.blob(15.7,8.6,2.6,1.5,30);
+  B.blob(15.7,8.6,2.6,1.5,30);B.obj=null;
   // side table + plant
   B.cyl('oakDark','a',14.25,7.75,0.22,0.0,0.5,24);B.cyl('ceramic','a',14.25,7.75,0.06,0.5,0.75,16);B.blob(14.25,7.75,0.6,0.6,0);
   plant(B,18.08,7.45,1.7);
   // --- bench-sill W3 + cushions
   B.prism('grille','a',mp(rect2(18298,6637,20668,7017)),0,0.56,{top:false});B.prism('oak','a',mp(rect2(18278,6637,20688,7037)),0.56,0.6,{bottom:true});
   B.box('fabLinen','a',19.5,6.84,1.6,0.34,0,0.6,0.68);B.box('terra','a',18.75,6.72,0.4,0.12,0,0.68,1.0);B.box('fabOat','a',19.15,6.72,0.4,0.12,0,0.68,1.0);
-  // --- dining
+  // --- dining set: table + chairs + pendant — one movable object
+  B.obj='dining';
   const E_=[-0.5,C30],Mn=[-C30,-0.5];const TC=[21391+2737*E_[0]+1200*Mn[0],6637+2737*E_[1]+1200*Mn[1]];
   const tcm=m(TC);B.box('oak','a',tcm[0],tcm[1],1.2,0.8,120,0.72,0.75,{bottom:true});
   for(const[i,j]of[[-1,-1],[1,-1],[1,1],[-1,1]]){const p=[i*0.52*E_[0]+j*0.32*(-Mn[0]),i*0.52*E_[1]+j*0.32*(-Mn[1])];B.box('graphite','a',tcm[0]+p[0],tcm[1]+p[1],0.04,0.04,120,0,0.72)}
   B.blob(tcm[0],tcm[1],1.6,1.2,120);B.cyl('ceramic','a',tcm[0],tcm[1],0.09,0.75,0.95,18);
   [[-870,0],[0,650],[0,-650],[870,0]].forEach(([du,dv])=>{const c=[TC[0]+du*E_[0]-dv*Mn[0],TC[1]+du*E_[1]-dv*Mn[1]];chair(B,c[0]/1000,c[1]/1000,tcm,{seat:'fabOat'})});
-  pendant(B,18.837,8.46,H,1.72,0.17,'opal');
+  pendant(B,tcm[0],tcm[1],H,1.62,0.17,'opal');B.light([tcm[0],1.5,tcm[1]],'#FFE2B8',0.22);B.obj=null;
   art(B,R,[20450,8260],[19560,9810],1.25,2.15,'art1');
   // --- track (living) white
   // track 3,0 m parallel to the kitchen wall, centre (15700, 8650) — sheet 11
   B.box('white','c',15.7,8.65,3.0,0.03,30,H-0.03,H-0.001);for(let k=0;k<5;k++){const t=-1.2+k*0.6,x=15.7+t*C30,z=8.65+t*0.5;B.cyl('white','c',x,z,0.03,H-0.16,H-0.03,12);B.cyl('glow','c',x,z,0.022,H-0.162,H-0.158,12,{top:false,bottom:true})}
   B.light([15.7,2.4,8.65],'#FFE7C2',0.35);
-  // --- kitchen
-  const lowB=krect(0,0,1590,600),rightB=krectr(630,0,1179,600);
-  for(const pl of[lowB,rightB]){const P=mp(pl);B.prism('lower','a',P,0.1,0.87);}
-  B.prism('plinth','a',mp(krect(0,0,1590,540)),0,0.1);B.prism('plinth','a',mp(krectr(630,0,1179,540)),0,0.1);
-  B.prism('quartz','a',mp(krect(-20,0,2210,620)),0.87,0.9,{bottom:true});B.prism('quartz','a',mp(krectr(630,0,1179,620)),0.87,0.9,{bottom:true});
-  // front seams (graphite hairlines)
-  [600,1200,1500].forEach(u=>B.prism('plinth','a',mp(krect(u-1,600,2,4)),0.1,0.87,{top:false}));
-  [630+575].forEach(s=>B.prism('plinth','a',mp(krectr(s-1,600,2,4)),0.1,0.87,{top:false}));
-  // hob, sink, tap
-  B.prism('black','a',mp(krect(40,60,560,500)),0.9,0.905);
-  B.prism('ceramic','a',mp(krectr(680,80,460,400)),0.9,0.902);const tp=m(kptr(910,40));B.cyl('graphite','a',tp[0],tp[1],0.018,0.9,1.22,12);
-  const sp1=m(kptr(910,40)),sp2=m(kptr(910,230));B.prism('graphite','a',[[sp1[0]-0.012,sp1[1]-0.012],[sp2[0]-0.012,sp2[1]-0.012],[sp2[0]+0.012,sp2[1]+0.012],[sp1[0]+0.012,sp1[1]+0.012]],1.2,1.225);
-  // fridge column + uppers (wall colour), apron quartz
-  const vKB=W(R,[16506,11965],[18277,12987]).E.vis,vKR=W(R,[18517,12862],[19307,11494]).E.vis;
-  B.prism('column',vKR,mp(krectr(30,0,600,600)),0,H,{});B.prism('plinth',vKR,mp(krectr(329,600,2,4)),0,2.25,{top:false});
-  B.prism('upper',vKB,mp(krect(-20,0,2210,350)),1.45,2.249,{bottom:true});B.prism('upper',vKR,mp(krectr(630,0,1179,350)),1.45,2.249,{bottom:true});
-  B.prism('antresol',vKB,mp(krect(-20,0,2210,350)),2.253,H,{bottom:true});B.prism('antresol',vKR,mp(krectr(630,0,1179,350)),2.253,H,{bottom:true});
-  [550,1100,1650].forEach(u=>B.prism('plinth',vKB,mp(krect(u-1,350,2,4)),1.45,2.25,{top:false}));
-  B.prism('plinth',vKB,mp(krect(-20,350,2210,4)),2.249,2.252,{top:false});
-  B.prism('glowSoft',vKB,mp(krect(0,300,2150,25)),1.442,1.446,{bottom:true,top:false});B.prism('glowSoft',vKR,mp(krectr(640,300,1150,25)),1.442,1.446,{bottom:true,top:false});
-  const ap1=mp(krect(-20,0,2210,8)),ap2=mp(krectr(630,0,1179,8));B.prism('quartz','a',ap1,0.9,1.45,{top:false});B.prism('quartz','a',ap2,0.9,1.45,{top:false});
-  // spots К1–К10, П0 — exactly as sheet 11 (line 1000 from the kitchen / pencil wall)
-  [-4132,-3432,-2732,-2032,-1332,-632,68,768,1468].forEach(u=>{const p=m(kpt(u,1000));spot(B,p[0],p[1],ceilLiv(p[0],p[1]))});{const p=m(kpt(1468,1700));spot(B,p[0],p[1],H)}{const p=m(kpt(-2732,60));spot(B,p[0],p[1],2.70)}
-  // drop edge (+2.700 → +2.950) with the FK-1 slot grille 1500×25; return 600×300 above the bench; FK-1 hatch 600×600
-  {const E=[[13488,7302],[12148,7940],[15332,9778],[15022,10315]].map(m);for(let i=0;i<E.length-1;i++){const a=E[i],b=E[i+1];const f=edgeFrame(a,b,mp(LIV_HIGH));B.quad('ceil','a',[[a[0],2.70,a[1]],[b[0],2.70,b[1]],[b[0],2.95,b[1]],[a[0],2.95,a[1]]],[f.n[0],0,f.n[1]])}
-   const a=E[1],b=E[2],L=Math.hypot(b[0]-a[0],b[1]-a[1]),d=[(b[0]-a[0])/L,(b[1]-a[1])/L],f=edgeFrame(a,b,mp(LIV_HIGH)),t0=1.98,P=(t,y)=>[a[0]+d[0]*t+f.n[0]*0.003,y,a[1]+d[1]*t+f.n[1]*0.003];
-   B.quad('plinth','a',[P(t0,2.80),P(t0+1.5,2.80),P(t0+1.5,2.825),P(t0,2.825)],[f.n[0],0,f.n[1]])}
-  {const c=m(kpt(-4000,560));const q=rotRectM(13.424,9.332,0.6,0.3,30);B.flat('grilleW','c2.70',q,2.697,false);const h=rotRectM(14.13,9.97,0.6,0.6,30);B.flat('plinth','c2.70',h,2.699,false);B.flat('ceil','c2.70',rotRectM(14.13,9.97,0.59,0.59,30),2.6985,false)}
-  // --- island
-  const IB=mp([[16843,10335],[17883,10935],[18183,10415],[17143,9815]]),IT=mp([[16843,10335],[17883,10935],[18333,10155],[17293,9555]]);
-  B.prism('lower','a',IB,0.1,0.87,{});B.prism('plinth','a',mp([[16893,10305],[17853,10860],[18133,10390],[17173,9835]]),0,0.1);
-  B.prism('quartz','a',IT,0.87,0.9,{bottom:true});
-  const nb=mp([[17143,9815],[18183,10415]]);const on=[KN[0]*0.004,KN[1]*0.004];
-  B.quad('oak','a',[[nb[0][0]+on[0],0.1,nb[0][1]+on[1]],[nb[1][0]+on[0],0.1,nb[1][1]+on[1]],[nb[1][0]+on[0],0.87,nb[1][1]+on[1]],[nb[0][0]+on[0],0.87,nb[0][1]+on[1]]],[KN[0],0,KN[1]],[[0,0.1],[1.2,0.1],[1.2,0.87],[0,0.87]]);
-  B.blob(17.55,10.25,1.5,0.9,30);
-  [[-223,2700],[377,2700]].forEach(([u,v])=>{const c=m(kpt(u,v));B.cyl('oak','a',c[0],c[1],0.19,0.63,0.67,22,{bottom:true});B.cyl('graphite','a',c[0],c[1],0.022,0.03,0.63,10);
-   B.cyl('graphite','a',c[0],c[1],0.2,0.0,0.03,22);B.cyl('graphite','a',c[0],c[1],0.17,0.26,0.275,22);B.blob(c[0],c[1],0.55,0.55,0)});
-  const ic=[17.588,10.245];[[-223,1880],[377,1880]].forEach(([u,v])=>{const p=m(kpt(u,v));pendant(B,p[0],p[1],H,1.72,0.12)});
-  B.light([ic[0],1.6,ic[1]],'#FFE2B8',0.28);
-  // --- hall: pencil, niche, stub+mirror, shoe, bench, entrance door
-  const vHW=W(R,[14832,10644],[16064,11370]).E.vis,vMR=W(R,[14586,11071],[14832,10644]).E.vis;
-  B.prism('lower',vMR,mp([[14832,10644],[15022,10315],[15091,10355],[14901,10684]]),0,H,{});
-  B.prism('lower',vHW,mp([hpt(0,0),hpt(450,0),hpt(450,380),hpt(0,380)]),0,H);
-  B.prism('lower',vHW,mp([hpt(450,0),hpt(1350,0),hpt(1350,380),hpt(450,380)]),0,0.9);B.prism('lower',vHW,mp([hpt(450,0),hpt(1350,0),hpt(1350,380),hpt(450,380)]),1.45,H,{bottom:true});
-  B.prism('oak',vHW,mp([hpt(450,0),hpt(1350,0),hpt(1350,380),hpt(450,380)]),0.9,0.92);
-  const kt=m(hpt(700,200));B.cyl('graphite',vHW,kt[0],kt[1],0.08,0.92,1.15,16);
-  B.prism('plinth',vHW,mp([hpt(449,380),hpt(451,380),hpt(451,384),hpt(449,384)]),0,H,{top:false});
-  const mr=W(R,[14586,11071],[14832,10644]);
-  {// mirror 550×1700 with a slim graphite frame, centred on the 873 mm plane right of the entrance
-   const A=[14.586,11.071],dd=[0.5,-C30],sn=[-C30,-0.5],P=(t,y,o)=>[A[0]+dd[0]*t+sn[0]*o,y,A[1]+dd[1]*t+sn[1]*o];const t0=0.16,t1=0.71,y0=0.3,y1=2.0;
+  // ===== kitchen v16 =====
+  // hall side, from the mirror wall to the right: tall unit with oven + microwave, tall unit with built-in fridge (both 600 deep),
+  // box around K1 flush with them and bevelled toward the niche; niche: sink, dishwasher, worktop to the corner and along the right wall,
+  // hob 600 set 600 from the end wall; uppers 350 deep, antresols 600 deep; all furniture to +2.600, soffit +2.650
+  const vKB=W(R,[16506,11965],[18277,12987]).E.vis,vKR=W(R,[18517,12862],[19307,11494]).E.vis,vHW=W(R,[14832,10644],[16064,11370]).E.vis,vMR=W(R,[14586,11071],[14832,10644]).E.vis;
+  const KT=2.60,hq=(u0,v0,u1,v1)=>mp([hpt(u0,v0),hpt(u1,v0),hpt(u1,v1),hpt(u0,v1)]),ln=(pts,y,vis)=>B.prism('plinth',vis||'a',pts,y,y+0.004,{bottom:true});
+  // mirror-wall stub, now 600 deep (flush with the tall units)
+  B.prism('lower',vMR,hq(-80,0,0,600),0,2.65,{});
+  // tall unit 1: drawers / oven / microwave / door / antresol door
+  B.prism('lower',vHW,hq(2,0,598,600),0.1,KT);B.prism('plinth',vHW,hq(20,0,580,550),0,0.1);
+  B.prism('black',vHW,hq(28,598,572,606),0.76,1.34);B.prism('black',vHW,hq(28,598,572,606),1.37,1.75);B.prism('steel',vHW,hq(70,606,530,622),1.29,1.31);
+  for(const y of[0.43,0.745,1.755,2.15])ln(hq(2,600,598,603),y,vHW);
+  B.prism('graphite',vHW,hq(250,600,350,618),0.62,0.64);B.prism('graphite',vHW,hq(250,600,350,618),0.33,0.35);B.prism('graphite',vHW,hq(520,600,536,618),1.85,2.05);
+  // tall unit 2: integrated fridge (freezer below), door above, antresol
+  B.prism('lower',vHW,hq(602,0,1198,600),0.1,KT);B.prism('plinth',vHW,hq(620,0,1180,550),0,0.1);
+  for(const y of[0.82,1.88,2.15])ln(hq(602,600,1198,603),y,vHW);
+  B.prism('graphite',vHW,hq(1140,600,1156,618),0.95,1.5);B.prism('graphite',vHW,hq(1140,600,1156,618),0.5,0.75);B.prism('graphite',vHW,hq(1140,600,1156,618),1.95,2.1);
+  // box around K1, flush with the tall units, 30° bevel from the box front to the shaft corner
+  B.prism('lower','a',mp([hpt(1200,0),[16064,11370],[16272,11010],[16861,11350],BEV,hpt(1200,600)]),0,2.65,{});
+  // niche: base units, plinths, worktops (20 overhang)
+  B.prism('lower','a',mp(krect(0,0,1590,600)),0.1,0.87);B.prism('lower','a',mp(krect(1590,0,455,228)),0.1,0.87);B.prism('lower','a',mp(krectr(0,0,1581,600)),0.1,0.87);
+  B.prism('plinth','a',mp(krect(0,0,1640,550)),0,0.1);B.prism('plinth','a',mp(krectr(0,0,1581,550)),0,0.1);
+  B.prism('quartz','a',mp(krect(0,0,1570,620)),0.87,0.9,{bottom:true});B.prism('quartz','a',mp(krect(1570,0,475,228)),0.87,0.9,{bottom:true});B.prism('quartz','a',mp(krectr(0,0,1581,620)),0.87,0.9,{bottom:true});
+  [600,1200].forEach(u=>B.prism('plinth','a',mp(krect(u-1,600,2,4)),0.1,0.87,{top:false}));
+  [600,1200].forEach(t=>B.prism('plinth','a',mp(krectr(t-1,600,2,4)),0.1,0.87,{top:false}));
+  for(const y of[0.36,0.62])ln(mp(krectr(600,600,600,4)),y);
+  for(const y of[0.36,0.62])ln(mp(krect(1200,600,390,4)),y);
+  // sink 600 + tap, dishwasher 600 (integrated panel), hob 600 on the right run
+  B.prism('steel','a',mp(krect(70,90,460,400)),0.9,0.903);{const a=m(kpt(300,45)),b=m(kpt(300,250));B.cyl('graphite','a',a[0],a[1],0.018,0.9,1.24,12);
+   B.prism('graphite','a',[[a[0]-0.012,a[1]-0.012],[b[0]-0.012,b[1]-0.012],[b[0]+0.012,b[1]+0.012],[a[0]+0.012,a[1]+0.012]],1.215,1.24)}
+  B.prism('black','a',mp(krectr(620,40,560,520)),0.9,0.905);
+  // uppers 350 deep (1.50–2.15); over the hob a shorter unit with a built-in hood (≥650 above the hob)
+  B.prism('upper',vKB,mp(krect(0,0,1840,350)),1.5,2.15,{bottom:true});B.prism('upper',vKB,mp(krect(1840,0,205,228)),1.5,2.15,{bottom:true});
+  B.prism('upper',vKR,mp(krectr(0,0,600,350)),1.5,2.15,{bottom:true});B.prism('upper',vKR,mp(krectr(600,0,600,350)),1.6,2.15,{bottom:true});B.prism('upper',vKR,mp(krectr(1200,0,381,350)),1.5,2.15,{bottom:true});
+  B.prism('graphite',vKR,mp(krectr(610,0,580,340)),1.58,1.6,{bottom:true});
+  [600,1200].forEach(u=>B.prism('plinth',vKB,mp(krect(u-1,350,2,4)),1.5,2.15,{top:false}));[600,1200].forEach(t=>B.prism('plinth',vKR,mp(krectr(t-1,350,2,4)),1.5,2.15,{top:false}));
+  // antresols 600 deep (2.15–2.60)
+  B.prism('antresol',vKB,mp(krect(0,0,1590,600)),2.15,KT,{bottom:true});B.prism('antresol',vKB,mp(krect(1590,0,455,228)),2.15,KT,{bottom:true});B.prism('antresol',vKR,mp(krectr(0,0,1581,600)),2.15,KT,{bottom:true});
+  [600,1200].forEach(u=>B.prism('plinth',vKB,mp(krect(u-1,600,2,4)),2.15,KT,{top:false}));[600,1200].forEach(t=>B.prism('plinth',vKR,mp(krectr(t-1,600,2,4)),2.15,KT,{top:false}));
+  // LED under the uppers and in the antresol overhang
+  B.prism('glowSoft',vKB,mp(krect(0,300,1840,25)),1.492,1.496,{bottom:true,top:false});B.prism('glowSoft',vKR,mp(krectr(0,300,600,25)),1.492,1.496,{bottom:true,top:false});B.prism('glowSoft',vKR,mp(krectr(1200,300,381,25)),1.492,1.496,{bottom:true,top:false});
+  B.prism('glowSoft',vKB,mp(krect(0,560,1590,25)),2.142,2.146,{bottom:true,top:false});B.prism('glowSoft',vKR,mp(krectr(0,560,1581,25)),2.142,2.146,{bottom:true,top:false});
+  // apron: quartz on the back wall, right wall and the box side above the sink
+  B.prism('quartz','a',mp(krect(0,0,2045,8)),0.9,1.5,{top:false});B.prism('quartz','a',mp(krectr(0,0,1581,8)),0.9,1.5,{top:false});B.prism('quartz','a',mp(krect(0,8,8,592)),0.9,1.5,{top:false});
+  B.light([...(p=>[p[0],1.9,p[1]])(m(kpt(900,900)))],'#FFE7C6',0.3);
+  // spots: hall К1–К3 and П0 in the +2.650 ceiling; kitchen spots 300 in front of the fronts in the +2.950 ceiling
+  [-4132,-3432,-2732].forEach(u=>{const p=m(kpt(u,1000));spot(B,p[0],p[1],2.65)});{const p=m(kpt(-2732,60));spot(B,p[0],p[1],2.65)}
+  [hpt(300,900),hpt(900,900),kpt(300,900),kpt(900,900),kpt(1290,1500)].forEach(q=>{const p=m(q);spot(B,p[0],p[1],ceilLiv(p[0],p[1]))});
+  // soffit faces +2.650 → +2.950 along the whole drop contour; FK-1 slot grille 1500×25 on the hall edge
+  DROP_EDGES.forEach(ch=>{const E=ch.map(m);for(let i=0;i<E.length-1;i++){const a=E[i],b=E[i+1];const f=edgeFrame(a,b,mp(LIV_HIGH));B.quad('ceil','a',[[a[0],2.65,a[1]],[b[0],2.65,b[1]],[b[0],2.95,b[1]],[a[0],2.95,a[1]]],[f.n[0],0,f.n[1]])}});
+  {const a=m([12148,7940]),b=m([15332,9778]),L=Math.hypot(b[0]-a[0],b[1]-a[1]),d=[(b[0]-a[0])/L,(b[1]-a[1])/L],f=edgeFrame(a,b,mp(LIV_HIGH)),t0=1.98,P=(t,y)=>[a[0]+d[0]*t+f.n[0]*0.003,y,a[1]+d[1]*t+f.n[1]*0.003];
+   B.quad('plinth','a',[P(t0,2.785),P(t0+1.5,2.785),P(t0+1.5,2.81),P(t0,2.81)],[f.n[0],0,f.n[1]])}
+  {const q=rotRectM(13.424,9.332,0.6,0.3,30);B.flat('grilleW','c2.65',q,2.647,false);const h=rotRectM(14.13,9.97,0.6,0.6,30);B.flat('plinth','c2.65',h,2.649,false);B.flat('ceil','c2.65',rotRectM(14.13,9.97,0.59,0.59,30),2.6485,false)}
+  // --- hall: mirror on the (now 1093 mm) plane right of the entrance, storage pencils, bench, entrance door
+  {const A=[14.586,11.071],dd=[0.5,-C30],sn=[-C30,-0.5],P=(t,y,o)=>[A[0]+dd[0]*t+sn[0]*o,y,A[1]+dd[1]*t+sn[1]*o];const t0=0.27,t1=0.82,y0=0.3,y1=2.0;
    B.quad('graphite',vMR,[P(t0-0.012,y0-0.012,0.01),P(t1+0.012,y0-0.012,0.01),P(t1+0.012,y1+0.012,0.01),P(t0-0.012,y1+0.012,0.01)],[sn[0],0,sn[1]]);
    B.quad('mirror',vMR,[P(t0,y0,0.013),P(t1,y0,0.013),P(t1,y1,0.013),P(t0,y1,0.013)],[sn[0],0,sn[1]]);
    const ww=W(R,[14586,11071],[14832,10644]);if(ww)wplane(B,ww.E,ww.s0,ww.s1,0,H,0.004,'lower')}
   // two standard tall cabinets 580 wall to wall in the niche next to the storage (front in line with storage leaf 2)
   {const bk0=[11948,8286],D=[C30,0.5],F=[200,-346];for(let k=0;k<2;k++){const u0=k*580+2,u1=(k+1)*580-2;const q=[[bk0[0]+D[0]*u0,bk0[1]+D[1]*u0],[bk0[0]+D[0]*u1,bk0[1]+D[1]*u1]];const poly=[q[0],q[1],[q[1][0]+F[0],q[1][1]+F[1]],[q[0][0]+F[0],q[0][1]+F[1]]];
-   B.prism(hallDrench?'hall':'front','a',mp(poly),0.1,2.69);const hx=(k===0?u1-60:u0+60);const hp=m([bk0[0]+D[0]*hx+F[0]*1.005,bk0[1]+D[1]*hx+F[1]*1.005]);B.box('graphite','a',hp[0],hp[1],0.016,0.02,30,0.95,1.35)}
+   B.prism(hallDrench?'hall':'front','a',mp(poly),0.1,2.60);const hx=(k===0?u1-60:u0+60);const hp=m([bk0[0]+D[0]*hx+F[0]*1.005,bk0[1]+D[1]*hx+F[1]*1.005]);B.box('graphite','a',hp[0],hp[1],0.016,0.02,30,0.95,1.35)}
    B.prism('plinth','a',mp([[bk0[0]+30,bk0[1]-20],[bk0[0]+D[0]*1160,bk0[1]+D[1]*1160-20],[bk0[0]+D[0]*1160+F[0]*0.9,bk0[1]+D[1]*1160+F[1]*0.9],[bk0[0]+F[0]*0.9+30,bk0[1]+F[1]*0.9]]),0,0.1)}
   // bench wall to wall in the niche left of the entrance, under the hooks
   {const a=[12792,9191],b=[13857,9820],n=[KN[0]*400,KN[1]*400];const q=[a,b,[b[0]+n[0],b[1]+n[1]],[a[0]+n[0],a[1]+n[1]]];B.prism(hallDrench?'hall':'front','a',mp(q),0.1,0.42);B.prism('oak','a',mp(q),0.42,0.46,{bottom:true});B.prism('plinth','a',mp([[a[0]+n[0]*0.1,a[1]+n[1]*0.1],[b[0]+n[0]*0.1,b[1]+n[1]*0.1],[b[0]+n[0]*0.85,b[1]+n[1]*0.85],[a[0]+n[0]*0.85,a[1]+n[1]*0.85]]),0,0.1);B.blob(13.42,9.33,1.4,0.6,30)}
@@ -549,7 +563,7 @@ ROOMS.living={name:'Кухня-гостиная',area:'32,5 м²',H:2.95,poly:RO
  views:[
   {name:'Общий вид с юга',ov:{az:[0.15,1],el:1.0,dist:0.72,target:[16900,9300]}},
   {name:'Общий вид с севера',ov:{az:[-0.2,-1],el:1.05,dist:0.72,target:[16900,9600]}},
-  {name:'Вид от входа',free:{eye:[15250,10050,1650],target:[19300,7600,1250],fov:66}},
+  {name:'Вид от входа',free:{eye:[14700,10000,1650],target:[19300,7600,1250],fov:66}},
   {name:'Стена ТВ',wall:[[14368,7002],[17174,7002]]},
   {name:'Окно и скамья',wall:[[18298,6637],[20668,6637]],clear:1.8},
   {name:'Обеденная зона',wall:[[21391,6637],[18783,11191]],fov:62,clear:2.0},
@@ -565,29 +579,29 @@ ROOMS.living={name:'Кухня-гостиная',area:'32,5 м²',H:2.95,poly:RO
 
 let laundryOpen=false,doorsOpen=false,storageOpen=false,hallDrench=false;
 
-ROOMS.corr={name:'Коридор',H:2.70,clear:1.1,poly:[[9978,5882],[10072,5882],[10072,5822],[13508,5822],[13508,7302],[13488,7302],[12148,7940],[11628,7640],[11628,7042],[9978,7042]],
- open:[[[13488,7302],[12148,7940]]],gaps:()=>[{p0:[10072,5822],p1:[11409,5822],top:2660}].concat(storageOpen?[{p0:[11628,7122],p1:[11628,7640],top:2660},{p0:[11628,7640],p1:[12148,7940],top:2660}]:[]),key:{d:[0.3,-0.9,0.2],c:'#FFF4E6',k:0.25},
+ROOMS.corr={name:'Коридор',H:2.65,clear:1.1,poly:[[9978,5882],[10072,5882],[10072,5822],[13508,5822],[13508,7302],[13488,7302],[12148,7940],[11628,7640],[11628,7042],[9978,7042]],
+ open:[[[13488,7302],[12148,7940]]],gaps:()=>[{p0:[10072,5822],p1:[11409,5822],top:2610}].concat(storageOpen?[{p0:[11628,7122],p1:[11628,7640],top:2610},{p0:[11628,7640],p1:[12148,7940],top:2610}]:[]),key:{d:[0.3,-0.9,0.2],c:'#FFF4E6',k:0.25},
  build(B,R){const H=R.H;
   // folding door of the laundry niche: 4 MDF leaves, stack to the right
-  if(!laundryOpen){for(let k=0;k<4;k++){const x0=10.072+k*0.33425;B.prism('door','a',[[x0+0.002,5.785],[x0+0.33425-0.002,5.785],[x0+0.33425-0.002,5.807],[x0+0.002,5.807]],0.004,2.656)}
+  if(!laundryOpen){for(let k=0;k<4;k++){const x0=10.072+k*0.33425;B.prism('door','a',[[x0+0.002,5.785],[x0+0.33425-0.002,5.785],[x0+0.33425-0.002,5.807],[x0+0.002,5.807]],0.004,2.606)}
    B.box('graphite','a',10.13,5.817,0.018,0.02,0,0.95,1.25)}
-  else{for(let k=0;k<4;k++){const x=11.409-0.014-k*0.023;B.box('door','a',x,5.96,0.02,0.334,k%2?4:-4,0.004,2.656)}
+  else{for(let k=0;k<4;k++){const x=11.409-0.014-k*0.023;B.box('door','a',x,5.96,0.02,0.334,k%2?4:-4,0.004,2.606)}
    B.box('graphite','a',11.409-0.014-3*0.023-0.017,6.09,0.018,0.02,0,0.95,1.25)}
   door(B,R,[12214,5822],[12918,5822]);door(B,R,[13508,6027],[13508,6907]);door(B,R,[9978,6052],[9978,6932]);
   const sm=hallDrench?'hall':'door';
-  if(!storageOpen){door(B,R,[11628,7122],[11628,7640],{kind:'front',h:2.66,handleAt:[11628,7640],mat:sm});door(B,R,[11628,7640],[12148,7940],{kind:'front',h:2.66,handleAt:[11628,7640],mat:sm})}
+  if(!storageOpen){door(B,R,[11628,7122],[11628,7640],{kind:'front',h:2.61,handleAt:[11628,7640],mat:sm});door(B,R,[11628,7640],[12148,7940],{kind:'front',h:2.61,handleAt:[11628,7640],mat:sm})}
   else{// leaf 1 (518) hinged at the blank wall, leaf 2 (600) hinged at the pencils; both opened 90° (hinges allow 180°)
-   B.box(sm,'a',11.628+0.259,7.122+0.012,0.518,0.022,0,0.004,2.656);B.box('graphite','a',11.628+0.46,7.122+0.03,0.016,0.02,0,0.9,1.3);
-   B.box(sm,'a',12.148+0.15,7.94-0.26,0.6,0.022,-60,0.004,2.656);B.box('graphite','a',12.148+0.27,7.94-0.47,0.016,0.02,-60,0.9,1.3);
+   B.box(sm,'a',11.628+0.259,7.122+0.012,0.518,0.022,0,0.004,2.606);B.box('graphite','a',11.628+0.46,7.122+0.03,0.016,0.02,0,0.9,1.3);
+   B.box(sm,'a',12.148+0.15,7.94-0.26,0.6,0.022,-60,0.004,2.606);B.box('graphite','a',12.148+0.27,7.94-0.47,0.016,0.02,-60,0.9,1.3);
    B.light([11.3,1.8,7.6],'#FFE7C6',0.3)}
   // FK-2 / FK-3 inspection hatches 600×600 in the corridor drop ceiling
-  for(const[x,z]of[[12.8,6.31],[10.6,6.31]]){B.flat('plinth','c2.70',rotRectM(x,z,0.6,0.6,0),2.699,false);B.flat('ceil','c2.70',rotRectM(x,z,0.59,0.59,0),2.6985,false)}
+  for(const[x,z]of[[12.8,6.31],[10.6,6.31]]){B.flat('plinth','c2.65',rotRectM(x,z,0.6,0.6,0),2.649,false);B.flat('ceil','c2.65',rotRectM(x,z,0.59,0.59,0),2.6485,false)}
   art(B,R,[10240,7042],[11240,7042],1.0,2.1,'art2','graphite');
   [10.786,11.959,13.132].forEach(x=>spot(B,x,6.432,H));[10.4,11.4].forEach(x=>nightL(B,x,7.035,0));
   B.light([11.7,2.2,6.4],'#FFE6C0',0.45);B.light([10.7,2.0,6.8],'#FFE6C0',0.25);
  }};
 
-ROOMS.laundry={name:'Постирочная',H:2.70,poly:rect2(10072,4992,11409,5822),open:[[[10072,5822],[11409,5822]]],
+ROOMS.laundry={name:'Постирочная',H:2.65,poly:rect2(10072,4992,11409,5822),open:[[[10072,5822],[11409,5822]]],
  floors:[{poly:rect2(10072,4992,11409,5822),mat:'tileHall',o:[10072,4992]}],key:{d:[0.1,-0.9,-0.4],c:'#FFF4E6',k:0.4},
  build(B,R){const H=R.H;
   B.prism('tileHall','a',mp(rect2(10072,4992,11409,5742)),0,0.2,{});
@@ -600,11 +614,11 @@ ROOMS.laundry={name:'Постирочная',H:2.70,poly:rect2(10072,4992,11409,
   if(laundryOpen)B.light([10.74,1.8,5.5],'#FFE7C6',0.35);
  }};
 
-ROOMS.storage={name:'Кладовая прихожей',H:2.70,poly:[[10922,7122],[11628,7122],[11628,7640],[12148,7940],[11948,8286],[11674,8129],[11193,8939],[10924,8805]],
+ROOMS.storage={name:'Кладовая прихожей',H:2.65,poly:[[10922,7122],[11628,7122],[11628,7640],[12148,7940],[11948,8286],[11674,8129],[11193,8939],[10924,8805]],
  open:[[[11628,7122],[11628,7640]],[[11628,7640],[12148,7940]]],floors:[{poly:[[10922,7122],[11628,7122],[11628,7640],[12148,7940],[11948,8286],[11674,8129],[11193,8939],[10924,8805]],mat:'tileHall',rot:30,o:KW0}],
  key:{d:[0.2,-0.9,0.3],c:'#FFF4E6',k:0.3},
  build(B,R){// rods in the rectangular part (upper full, lower half), shelves in the triangle, robot-vacuum base by leaf 2
-  B.prism('white','a',[[10.922,7.122],[11.628,7.122],[11.628,7.142],[10.922,7.142]],0,2.66);
+  B.prism('white','a',[[10.922,7.122],[11.628,7.122],[11.628,7.142],[10.922,7.142]],0,2.61);
   for(const[y,x1]of[[2.0,11.482],[1.05,11.2]]){B.prism('steel','a',[[10.93,7.97],[x1,7.97],[x1,7.99],[10.93,7.99]],y,y+0.02,{bottom:true});
    const cols=['clothes2','clothes1','clothes3','clothes4','fabLinen'];for(let k=0;10.97+k*0.12<x1-0.04;k++)B.box(cols[k%5],'a',10.97+k*0.12,7.98,0.03,0.5,0,y-(y>1.5?0.85:0.6),y-0.03)}
   [0.35,0.75,1.15,1.55,1.95,2.35].forEach(y=>B.prism('white','a',mp([[10922,8206],[11628,8206],[11193,8939],[10924,8805]]),y,y+0.02,{bottom:true}));
@@ -817,15 +831,16 @@ const SCENES={
   views:[
    {name:'Общий вид с юга',ov:{az:[0.15,1],el:1.0,dist:0.78,target:[15600,9100]}},
    {name:'Общий вид с севера',ov:{az:[-0.2,-1],el:1.05,dist:0.78,target:[15600,9200]}},
-   {name:'Вид от входа',free:{eye:[15250,10050,1650],target:[19300,7600,1250],fov:66}},
+   {name:'Вид от входа',free:{eye:[14700,10000,1650],target:[19300,7600,1250],fov:66}},
    {name:'Из прихожей в коридор',free:{eye:[14900,9600,1650],target:[10300,6450,1300],fov:60}},
    {name:'Стена ТВ',wall:[[14368,7002],[17174,7002]]},
    {name:'Окно и скамья',wall:[[18298,6637],[20668,6637]],clear:1.8},
    {name:'Обеденная зона',wall:[[21391,6637],[18783,11191]],fov:62,clear:2.0},
-   {name:'Кухня: варочная',wall:[[16506,11965],[18277,12987]],clear:2.2},
-   {name:'Кухня: мойка и холодильник',wall:[[18517,12862],[19307,11494]],clear:2.2},
-   {name:'Кухня и остров',free:{eye:[16576,8391,1700],target:[17608,12255,1100],fov:58,near:1.2}},
-   {name:'Остров и кухня сбоку',free:{eye:[19600,9500,1600],target:[16900,11100,1100],fov:62}},
+   {name:'Кухня: мойка и ПММ',wall:[[16506,11965],[18277,12987]],clear:2.2},
+   {name:'Кухня: варочная панель',wall:[[18517,12862],[19307,11494]],clear:2.2},
+   {name:'Кухня целиком',free:{eye:[16300,8300,1700],target:[17300,12000,1150],fov:62,near:1.2}},
+   {name:'Пеналы и короб',free:{eye:[17157,8176,1600],target:[15657,10774,1250],fov:60,near:1.0}},
+   {name:'Кухня сбоку',free:{eye:[19600,9500,1600],target:[16900,11100,1100],fov:62}},
    {name:'Прихожая',free:{eye:[17000,8650,1700],target:[13650,10200,1250],fov:62}},
    {name:'Вход и зеркало',free:{eye:[12950,9450,1600],target:[14800,10690,1200],fov:60}},
    {name:'Вдоль коридора',free:{eye:[13300,6450,1600],target:[9978,6400,1200],fov:66}},
@@ -835,7 +850,7 @@ const SCENES={
    {name:'Коридор: мастер-блок',r:'corr',wall:[[9978,5882],[9978,7042]]},
    {name:'Кладовая (откройте кнопкой)',free:{eye:[13200,6650,1650],target:[11300,8050,1100],fov:62}},
    {name:'Постирочная',r:'laundry',wall:[[10072,4992],[11409,4992]],fov:62,clear:1.35}],
-  concept:'Одно пространство от окна гостиной до конца коридора: стены, двери и встроенные шкафы в основном цвете палитры, пол — доска без порогов, в кухне и прихожей — керамогранит. Самый тёмный тон палитры собран внизу кухни и продолжается коробом у кухни, пеналом прихожей и порталом вокруг белой входной двери; прихожая выделена отдельным средним тоном на стенах. Плитка уложена вдоль кухни. Потолок над прихожей и коридором ниже (+2.700, ГКЛ с фанкойлами), над кухней и гостиной +2.950; на торце опуска — щелевая решётка ФК-1, над лавкой — возврат 600×300. Складная дверь постирочной в цвет стен собирается вправо — кнопка ниже.',
+  concept:'Одно пространство от окна гостиной до конца коридора. Кухня перестроена: от зеркала вправо — пенал с духовым шкафом и СВЧ (чёрные), пенал со встроенным холодильником, оба глубиной 600; короб у К1 заподлицо с ними и со скосом к нише. В нише — мойка, ПММ, столешница до угла и вдоль правой стены, варочная 600 в 600 от торцевой стены; навесные шкафы 350 и антресоли 600 до +2.600. Потолок ГКЛ +2.650 над прихожей, коридором и по всему периметру кухни (зазор 50 над мебелью), над гостиной натяжной +2.950. Остров пока скрыт. Диван и обеденную группу можно двигать: кнопка «Двигать мебель».',
   mats:[['wall','Стены, двери','краска матовая, класс 1–2 по мокрому истиранию; МДФ под покраску'],['hall','Стены прихожей','краска того же класса, средний тон палитры'],['acc','Стена ТВ','известковая краска с лёгкой фактурой'],['oakFloor','Пол','инженерная доска, дуб натур'],['tileHall','Кухня, прихожая, постирочная','керамогранит 600×600 матовый'],['lower','Низ кухни','матовые фасады'],['upper','Верх кухни','матовые фасады без ручек'],['antresol','Антресоль','до потолка'],['quartz','Столешница и фартук','кварцевый агломерат'],['graphite','Ручки, профили, подвесы','матовый графит']]},
  bed1:{tab:'Спальня 1 и гардероб',name:'Мастер-блок: спальня 1, гардероб, санузел 1',area:'14,8 + 2,5 + 5,5 м²',rooms:['bed1','ward','bath1'],doors:true,
   views:[
@@ -874,11 +889,11 @@ function buildScene(key){const S=SCENES[key];seed=11;const B=new Builder();const
  rooms.forEach(R=>{B.curH=R.H;buildShell(B,R);R.build(B,R)});
  const groups=[];for(const g of B.g.values()){const arr=new Float32Array(g.d);const vao=gl.createVertexArray();gl.bindVertexArray(vao);const vb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,vb);gl.bufferData(gl.ARRAY_BUFFER,arr,gl.STATIC_DRAW);
   const al=k=>gl.getAttribLocation(prog,k);gl.enableVertexAttribArray(al('aP'));gl.vertexAttribPointer(al('aP'),3,gl.FLOAT,false,32,0);gl.enableVertexAttribArray(al('aN'));gl.vertexAttribPointer(al('aN'),3,gl.FLOAT,false,32,12);
-  gl.enableVertexAttribArray(al('aU'));gl.vertexAttribPointer(al('aU'),2,gl.FLOAT,false,32,24);groups.push({mat:g.mat,vis:g.vis,vao,vb,n:arr.length/8})}
+  gl.enableVertexAttribArray(al('aU'));gl.vertexAttribPointer(al('aU'),2,gl.FLOAT,false,32,24);groups.push({mat:g.mat,vis:g.vis,obj:g.obj,vao,vb,n:arr.length/8})}
  gl.bindVertexArray(null);
  let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;rooms.forEach(R=>R.pm.forEach(p=>{x0=Math.min(x0,p[0]);x1=Math.max(x1,p[0]);z0=Math.min(z0,p[1]);z1=Math.max(z1,p[1])}));
  if(scene)scene.groups.forEach(g=>{gl.deleteBuffer(g.vb);gl.deleteVertexArray(g.vao)});
- scene={key,S,rooms,labels:B.labels,R:rooms[0],H:Math.max(...rooms.map(r=>r.H)),groups,walls:B.walls,lights:key==='all'?B.lights.filter(l=>l.win):B.lights.slice(0,12),bounds:{x0,x1,z0,z1,cx:(x0+x1)/2,cz:(z0+z1)/2,r:Math.hypot(x1-x0,z1-z0)/2}};
+ scene={key,S,rooms,objs:B.ob,labels:B.labels,R:rooms[0],H:Math.max(...rooms.map(r=>r.H)),groups,walls:B.walls,lights:key==='all'?B.lights.filter(l=>l.win):B.lights.slice(0,12),bounds:{x0,x1,z0,z1,cx:(x0+x1)/2,cz:(z0+z1)/2,r:Math.hypot(x1-x0,z1-z0)/2}};
 }
 
 /* ---------------- camera & views ---------------- */
@@ -918,19 +933,38 @@ function setMat(name){const M=MAT[name];gl.uniform3fv(U.uC,hex(M.c||'#ffffff'));
  if(M.emT){gl.uniform3fv(U.uEm,[M.emT,M.emT,M.emT]);gl.uniform1i(U.uEmT,1)}else if(M.em){const e=hex(M.em).map(v=>Math.pow(v,2.2)*(M.emK||1));gl.uniform3fv(U.uEm,e);gl.uniform1i(U.uEmT,0)}else{gl.uniform3fv(U.uEm,[0,0,0]);gl.uniform1i(U.uEmT,0)}
  if(M.dbl)gl.disable(gl.CULL_FACE);else gl.enable(gl.CULL_FACE)}
 let ceilMode=false,matMode=false;
+/* ---------- movable furniture: sofa, dining set (table + chairs + pendant) ---------- */
+const IDENT=[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1];
+const FURN0={sofa:{x:0,z:0,a:0},dining:{x:0,z:0,a:0}};let FURN=JSON.parse(JSON.stringify(FURN0));
+try{const f=JSON.parse(localStorage.getItem('koncept-furn')||'null');if(f&&f.sofa&&f.dining)FURN=f}catch(e){}
+const saveFurn=()=>{try{localStorage.setItem('koncept-furn',JSON.stringify(FURN))}catch(e){}};
+let moveMode=false,selObj=null;
+function objPivot(id){const b=scene&&scene.objs[id];return b?[(b.mn[0]+b.mx[0])/2,(b.mn[2]+b.mx[2])/2]:[0,0]}
+function objM(id){if(!id||!scene||!scene.objs[id])return IDENT;const st=FURN[id],c=objPivot(id),a=st.a*Math.PI/180,co=Math.cos(a),si=Math.sin(a);
+ return[co,0,-si,0, 0,1,0,0, si,0,co,0, c[0]+st.x-(co*c[0]+si*c[1]),0,c[1]+st.z-(-si*c[0]+co*c[1]),1]}
+function applyM(M,p){return[M[0]*p[0]+M[4]*p[1]+M[8]*p[2]+M[12],M[1]*p[0]+M[5]*p[1]+M[9]*p[2]+M[13],M[2]*p[0]+M[6]*p[1]+M[10]*p[2]+M[14]]}
+function setObj(id){gl.uniformMatrix4fv(U.uM,false,objM(id));gl.uniform1f(U.uSel,(moveMode&&id&&id===selObj)?1:0)}
+function rayAt(e){const r=canvas.getBoundingClientRect(),nx=(e.clientX-r.left)/r.width*2-1,ny=1-(e.clientY-r.top)/r.height*2,asp=r.width/r.height;
+ const f=V3.norm(V3.sub(cam.target,cam.eye)),rt=V3.norm(V3.cross(f,[0,1,0])),u=V3.cross(rt,f),th=Math.tan(cam.fov*Math.PI/360);
+ return{o:cam.eye.slice(),d:V3.norm(V3.add(f,V3.add(V3.mul(rt,nx*th*asp),V3.mul(u,ny*th))))}}
+function floorHit(e){const r=rayAt(e);if(r.d[1]>-1e-4)return null;const t=-r.o[1]/r.d[1];return[r.o[0]+r.d[0]*t,r.o[2]+r.d[2]*t]}
+function pickObj(e){const r=rayAt(e);let best=null,bt=1e9;for(const id in FURN){const b=scene.objs[id];if(!b)continue;const st=FURN[id],c=objPivot(id),a=st.a*Math.PI/180,co=Math.cos(a),si=Math.sin(a);
+  const tx=(x,z)=>[co*x-si*z,si*x+co*z];const lo=tx(r.o[0]-c[0]-st.x,r.o[2]-c[1]-st.z),ld=tx(r.d[0],r.d[2]);const O=[lo[0]+c[0],r.o[1],lo[1]+c[1]],D=[ld[0],r.d[1],ld[1]];
+  let t0=0,t1=1e9,ok=true;for(let i=0;i<3;i++){if(Math.abs(D[i])<1e-9){if(O[i]<b.mn[i]||O[i]>b.mx[i]){ok=false;break}continue}let a1=(b.mn[i]-O[i])/D[i],a2=(b.mx[i]-O[i])/D[i];if(a1>a2)[a1,a2]=[a2,a1];t0=Math.max(t0,a1);t1=Math.min(t1,a2);if(t0>t1){ok=false;break}}
+  if(ok&&t0<bt){bt=t0;best=id}}return best}
 const CODES={
  'С-1':['wall','Стены — основной цвет','малярный флизелин + моющаяся матовая краска, класс 1–2 по мокрому истиранию'],
  'С-2':['acc','Стена ТВ между стеллажами','декоративная известковая краска (лаймвош): по шпаклёвке и грунту, 2–3 слоя кистью крест-накрест; мягкая «облачная» фактура, матовая, паропроницаемая; тон — акцентный палитры'],
  'С-2а':['accFlat','Стена изголовья спальни 1','матовая краска акцентного тона, без фактуры'],
  'С-5':['hall','Стены прихожей','моющаяся матовая краска класса 1, средний тон палитры'],
- 'С-6':['lower','Короб у кухни, плоскость зеркала у входа','краска тёмного тона кухни'],
+ 'С-6':['lower','Короб у К1 со скосом, плоскость зеркала у входа','ГКЛ по каркасу, краска тёмного тона кухни'],
  'С-3':['tileW','Стены санузлов','керамогранит 600×600 матовый на всю высоту, гидроизоляция'],
  'С-4':['kab','Акцент в душах','кабанчик 7,5×15 глянец, прямая раскладка вразбежку'],
  'П-1':['oakFloor','Пол комнат, коридора, гостиной','инженерная доска, дуб натур 15–16 мм, однополосная, матовое масло или лак; единым слоем без порогов'],
  'П-2':['tileHall','Пол кухни, прихожей, кладовой, постирочной','керамогранит 600×600 матовый R10 «известняк», раскладка вдоль кухни, шов 2 мм в тон'],
  'П-3':['tileF','Пол санузлов','керамогранит 600×600 R10, на тон темнее стен; тёплый пол'],
- 'Ф-1':['lower','Низ кухни, колонна, остров, пенал у входа','МДФ матовая эмаль или ЛДСП с матовым покрытием, тёмный тон палитры'],
- 'Ф-2':['upper','Верх кухни, антресоль','МДФ матовая эмаль, без ручек'],
+ 'Ф-1':['lower','Низ кухни, пеналы с техникой и холодильником','МДФ матовая эмаль или ЛДСП с матовым покрытием, тёмный тон палитры'],
+ 'Ф-2':['upper','Навесные шкафы 350 и антресоли 600 до +2.600','МДФ матовая эмаль, без ручек; антресоль — по палитре'],
  'Ф-3':['front','Межкомнатные двери, створки кладовой, шкафы, пеналы','МДФ под покраску в цвет стен (в режиме «Прихожая в одном цвете» — в цвет прихожей)'],
  'К-1':['quartz','Столешница и фартук','кварцевый агломерат 20 мм, светлый, почти без прожилок'],
  'Д-0':['lower','Входная дверь','полотно существующее белое, не перекрашивается; откосы и портал 120 мм — в тёмном тоне кухни (в режиме «Прихожая в одном цвете» — в цвете прихожей)'],
@@ -941,8 +975,8 @@ const CODES={
 // markers: room, code, [x mm, y mm, h m], inward wall normal (plan) or null
 const MK=[
  ['living','С-2',[15770,7020,2.3],[0,1]],['living','С-1',[20491,8196,2.3],[-0.866,-0.5]],['living','П-1',[16200,8000,0.01]],['living','П-2',[14300,10000,0.01]],
- ['living','Ф-1',[...kpt(800,640),0.5]],['living','Ф-2',[...kpt(1100,370),1.9]],['living','К-1',[...kpt(300,300),0.92]],['living','С-6',[16581,11154,1.8],[0.5,-0.866]],
- ['living','Ф-1',[...hpt(225,392),1.6]],['living','С-5',[13334,9488,2.3],[0.5,-0.866]],['living','Д-0',[14014,10821,1.6],[0.64,-0.769]],
+ ['living','Ф-1',[...kpt(800,640),0.5]],['living','Ф-2',[...kpt(1100,370),1.9]],['living','К-1',[...kpt(300,300),0.92]],['living','С-6',[...hpt(1450,610),1.8],[0.5,-0.866]],
+ ['living','Ф-1',[...hpt(900,610),1.6],[0.5,-0.866]],['living','С-5',[13334,9488,2.3],[0.5,-0.866]],['living','Д-0',[14014,10821,1.6],[0.64,-0.769]],
  ['living','Ф-3',[12740,8215,1.8]],['living','Ф-3',[11900,7780,1.6]],['living','Д',[15770,7310,0.37]],['living','М-10',[19480,7040,0.3]],
  ['corr','С-1',[10500,7030,1.6],[0,-1]],['corr','Ф-3',[12566,5835,1.5],[0,1]],['corr','Ф-3',[10740,5840,1.6],[0,1]],['corr','П-1',[12300,6450,0.01]],
  ['bed1','С-2а',[4740,3755,2.3],[0,1]],['bed1','С-1',[7000,7030,1.8],[0,-1]],['bed1','П-1',[5000,6300,0.01]],['bed1','Д',[4740,6860,0.78]],['bed1','Ф-3',[6525,4760,1.7],[-1,0]],
@@ -961,22 +995,25 @@ function draw(){if(!scene)return;resize();gl.viewport(0,0,canvas.width,canvas.he
  const asp=canvas.width/canvas.height;const P=persp(cam.fov*Math.PI/180,asp,cam.near,80),Vw=lookAt(cam.eye,cam.target,[0,1,0]);const VP=mmul(P,Vw);gl.uniformMatrix4fv(U.uVP,false,VP);drawLabels(VP);
  gl.uniform3fv(U.uEye,cam.eye);const R=scene.R,k=R.key||{d:[0,-1,0.3],c:'#ffffff',k:0.3};gl.uniform3fv(U.uKD,V3.norm(k.d));gl.uniform3fv(U.uKC,hex(k.c).map(v=>v*k.k));
  gl.uniform3fv(U.uSky,[0.62,0.61,0.59]);gl.uniform3fv(U.uGr,[0.36,0.335,0.31]);gl.uniform1f(U.uH,scene.H);gl.uniform1f(U.uExp,0.95);
- const L=scene.lights;const lp=new Float32Array(36),lc=new Float32Array(36);L.forEach((l,i)=>{lp.set(l.p,i*3);lc.set(l.c,i*3)});gl.uniform3fv(U.uLP,lp);gl.uniform3fv(U.uLC,lc);gl.uniform1i(U.uNL,L.length);
+ const L=scene.lights;const lp=new Float32Array(36),lc=new Float32Array(36);L.forEach((l,i)=>{lp.set(l.obj?applyM(objM(l.obj),l.p):l.p,i*3);lc.set(l.c,i*3)});gl.uniform3fv(U.uLP,lp);gl.uniform3fv(U.uLC,lc);gl.uniform1i(U.uNL,L.length);
  const opaque=[],shadows=[],trans=[];scene.groups.forEach(g=>{if(!visible(g))return;const M=MAT[g.mat];if(M.shadow)shadows.push(g);else if(M.a!==undefined&&M.a<1)trans.push(g);else opaque.push(g)});
- gl.disable(gl.BLEND);gl.depthMask(true);opaque.forEach(g=>{setMat(g.mat);gl.bindVertexArray(g.vao);gl.drawArrays(gl.TRIANGLES,0,g.n)});
+ gl.disable(gl.BLEND);gl.depthMask(true);opaque.forEach(g=>{setMat(g.mat);setObj(g.obj);gl.bindVertexArray(g.vao);gl.drawArrays(gl.TRIANGLES,0,g.n)});
  gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);gl.depthMask(false);
- shadows.forEach(g=>{setMat(g.mat);gl.bindVertexArray(g.vao);gl.drawArrays(gl.TRIANGLES,0,g.n)});
- trans.forEach(g=>{setMat(g.mat);gl.bindVertexArray(g.vao);gl.drawArrays(gl.TRIANGLES,0,g.n)});
+ shadows.forEach(g=>{setMat(g.mat);setObj(g.obj);gl.bindVertexArray(g.vao);gl.drawArrays(gl.TRIANGLES,0,g.n)});
+ trans.forEach(g=>{setMat(g.mat);setObj(g.obj);gl.bindVertexArray(g.vao);gl.drawArrays(gl.TRIANGLES,0,g.n)});
  gl.depthMask(true);gl.bindVertexArray(null)}
 
 /* ---------------- interaction ---------------- */
 let drag=null;const ptrs=new Map();
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
-canvas.addEventListener('pointerdown',e=>{canvas.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,[e.clientX,e.clientY]);drag={x:e.clientX,y:e.clientY,pan:e.shiftKey||e.button===2,pinch:null};cam.anim=null;cam.near=Math.min(cam.near,0.08)});
+canvas.addEventListener('pointerdown',e=>{canvas.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,[e.clientX,e.clientY]);drag={x:e.clientX,y:e.clientY,pan:e.shiftKey||e.button===2,pinch:null};cam.anim=null;
+ if(moveMode&&ptrs.size===1&&e.button===0){const id=pickObj(e);if(id){drag.obj=id;drag.f0=floorHit(e);drag.o0={...FURN[id]};selObj=id;updMoveUI();draw();return}}
+ cam.near=Math.min(cam.near,0.08)});
 canvas.addEventListener('pointermove',e=>{if(!drag||!ptrs.has(e.pointerId))return;const prev=ptrs.get(e.pointerId);ptrs.set(e.pointerId,[e.clientX,e.clientY]);
+ if(drag.obj){const f=floorHit(e);if(f&&drag.f0){FURN[drag.obj].x=drag.o0.x+f[0]-drag.f0[0];FURN[drag.obj].z=drag.o0.z+f[1]-drag.f0[1];draw()}return}
  if(ptrs.size===2){const p=[...ptrs.values()];const d=Math.hypot(p[0][0]-p[1][0],p[0][1]-p[1][1]);if(drag.pinch)zoom(drag.pinch/d);drag.pinch=d;return}
  const dx=e.clientX-prev[0],dy=e.clientY-prev[1];if(drag.pan)pan(dx,dy);else orbit(dx,dy);draw()});
-const up=e=>{ptrs.delete(e.pointerId);if(ptrs.size===0)drag=null;else if(drag)drag.pinch=null};canvas.addEventListener('pointerup',up);canvas.addEventListener('pointercancel',up);
+const up=e=>{ptrs.delete(e.pointerId);if(drag&&drag.obj)saveFurn();if(ptrs.size===0)drag=null;else if(drag)drag.pinch=null};canvas.addEventListener('pointerup',up);canvas.addEventListener('pointercancel',up);
 canvas.addEventListener('wheel',e=>{e.preventDefault();zoom(Math.exp(e.deltaY*0.0012));draw()},{passive:false});
 function orbit(dx,dy){const off=V3.sub(cam.eye,cam.target);let r=V3.len(off),th=Math.atan2(off[0],off[2]),ph=Math.acos(Math.max(-1,Math.min(1,off[1]/r)));
  th-=dx*0.006;ph=Math.max(0.12,Math.min(1.62,ph-dy*0.006));cam.eye=[cam.target[0]+r*Math.sin(ph)*Math.sin(th),cam.target[1]+r*Math.cos(ph),cam.target[2]+r*Math.sin(ph)*Math.cos(th)]}
@@ -1002,13 +1039,19 @@ function selectScene(key,viewIdx){laundryOpen=false;doorsOpen=false;storageOpen=
  [...roomsEl.children].forEach(c=>c.setAttribute('aria-pressed',c.dataset.k===key?'true':'false'));
  document.getElementById('rtitle').textContent=S.name;document.getElementById('rmeta').textContent=S.area;
  document.getElementById('rconcept').textContent=S.concept;matList(document.getElementById('rmats'),S.mats);legend();
- lBtn.hidden=!S.laundry;sBtn.hidden=!S.laundry;hBtn.hidden=!(S.laundry||key==='all');dBtn.hidden=!S.doors;lBtn.textContent=laundryOpen?'Закрыть постирочную':'Открыть постирочную';
+ lBtn.hidden=!S.laundry;setTimeout(updMoveUI,0);sBtn.hidden=!S.laundry;hBtn.hidden=!(S.laundry||key==='all');dBtn.hidden=!S.doors;lBtn.textContent=laundryOpen?'Закрыть постирочную':'Открыть постирочную';
  viewsEl.innerHTML='';S.views.forEach((v,i)=>{const b=document.createElement('button');b.className='chip';b.type='button';b.id='view-'+i;b.textContent=v.name;b.onclick=()=>setView(i);viewsEl.appendChild(b)});
  try{localStorage.setItem('koncept-room',key)}catch(e){}
  setView(viewIdx||0,true)}
 lBtn.onclick=()=>{laundryOpen=!laundryOpen;lBtn.textContent=laundryOpen?'Закрыть постирочную':'Открыть постирочную';const c={eye:cam.eye,target:cam.target,fov:cam.fov,near:cam.near};buildScene(scene.key);Object.assign(cam,c);draw()};
 dBtn.onclick=()=>{doorsOpen=!doorsOpen;dBtn.textContent=doorsOpen?'Закрыть двери':'Открыть двери';const c={eye:cam.eye,target:cam.target,fov:cam.fov,near:cam.near};buildScene(scene.key);Object.assign(cam,c);draw()};
 function rebuildKeep(){const c={eye:cam.eye,target:cam.target,fov:cam.fov,near:cam.near};buildScene(scene.key);Object.assign(cam,c);draw()}
+const mvBtn=document.getElementById('moveBtn'),rotBtn=document.getElementById('rotBtn'),rsBtn=document.getElementById('resetBtn'),hintEl=document.getElementById('hint'),hint0=hintEl.textContent;
+function updMoveUI(){const vis=scene&&(scene.key==='living'||scene.key==='all');mvBtn.hidden=!vis;mvBtn.textContent=moveMode?'Готово':'Двигать мебель';rotBtn.hidden=!(vis&&moveMode&&selObj);rsBtn.hidden=!(vis&&moveMode);
+ rotBtn.textContent='Повернуть '+(selObj==='sofa'?'диван':'обеденную группу')+' на 15°';hintEl.textContent=moveMode?'Тяните диван или обеденную группу (стол, стулья и люстра двигаются вместе) · остальное — как обычно':hint0}
+mvBtn.onclick=()=>{moveMode=!moveMode;if(!moveMode)selObj=null;updMoveUI();draw()};
+rotBtn.onclick=()=>{if(!selObj)return;FURN[selObj].a=(FURN[selObj].a+15)%360;saveFurn();draw()};
+rsBtn.onclick=()=>{FURN=JSON.parse(JSON.stringify(FURN0));saveFurn();draw()};
 sBtn.onclick=()=>{storageOpen=!storageOpen;sBtn.textContent=storageOpen?'Закрыть кладовую':'Открыть кладовую';rebuildKeep()};
 hBtn.onclick=()=>{hallDrench=!hallDrench;hBtn.textContent=hallDrench?'Прихожая: портал в тоне кухни':'Прихожая в одном цвете';rebuildKeep()};
 mBtn.onclick=()=>{matMode=!matMode;mBtn.textContent=matMode?'Скрыть материалы':'Показать материалы';legend();draw()};
@@ -1018,7 +1061,7 @@ ORDER.forEach(k=>{const b=document.createElement('button');b.className='chip';b.
 window.addEventListener('resize',()=>{if(scene&&!cam.anim&&!drag){setView(curView,true)}});
 let start='all';const h=(location.hash||'').slice(1);if(SCENES[h])start=h;else{try{const s=localStorage.getItem('koncept-room');if(SCENES[s])start=s}catch(e){}}
 let pal0=0;try{const p=localStorage.getItem('koncept-pal');const i=PALETTES.findIndex(x=>x.id===p);if(i>=0)pal0=i}catch(e){}
-window.__setRoom=(k,i)=>selectScene(k,i||0);window.__views=k=>SCENES[k].views.length;window.__pal=i=>applyPalette(i);window.__laundry=()=>lBtn.click();window.__doors=()=>dBtn.click();window.__ceil=()=>cBtn.click();window.__mat=()=>mBtn.click();window.__storage=()=>sBtn.click();window.__drench=()=>hBtn.click();
+window.__setRoom=(k,i)=>selectScene(k,i||0);window.__views=k=>SCENES[k].views.length;window.__pal=i=>applyPalette(i);window.__laundry=()=>lBtn.click();window.__doors=()=>dBtn.click();window.__ceil=()=>cBtn.click();window.__mat=()=>mBtn.click();window.__storage=()=>sBtn.click();window.__furn=(o)=>{Object.assign(FURN,o);draw()};window.__move=()=>mvBtn.click();window.__drench=()=>hBtn.click();
 applyPalette(pal0);selectScene(start,0);applyPalette(pal0);
 })();
 </script>
