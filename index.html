@@ -91,6 +91,91 @@ canvas.ruler{cursor:crosshair}
 
 </head>
 <body>
+<title>Интерьер квартиры v15</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Forum&family=Golos+Text:wght@400;500;600&display=swap">
+<style>
+/* Layout: one-screen viewer — top bar with rooms, 3D stage, side sheet with concept + views (stacks under stage on phones) */
+:root{
+  --bg:#F4F1EC; --panel:#FBFAF7; --fg:#2B2926; --muted:#76706A; --line:#E2DCD3;
+  --accent:#9C5A41; --chip:#EEE9E1; --chip-on:#2B2926; --chip-on-fg:#FBFAF7;
+  --f-display:"Forum","Georgia",serif; --f-body:"Golos Text",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1C1B19; --panel:#242220; --fg:#ECE7DF; --muted:#A39C93; --line:#3A3733;
+  --accent:#D08A6C; --chip:#2F2C29; --chip-on:#ECE7DF; --chip-on-fg:#1C1B19; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1C1B19; --panel:#242220; --fg:#ECE7DF; --muted:#A39C93; --line:#3A3733;
+  --accent:#D08A6C; --chip:#2F2C29; --chip-on:#ECE7DF; --chip-on-fg:#1C1B19; color-scheme:dark}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:14px;line-height:1.5;overflow:hidden}
+.app{height:100%;display:grid;grid-template-rows:auto 1fr;}
+header{display:flex;align-items:center;gap:16px;padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));border-bottom:1px solid var(--line);min-width:0}
+header h1{font-family:var(--f-display);font-weight:400;font-size:22px;margin:0;white-space:nowrap;letter-spacing:.01em}
+.rooms{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;min-width:0;flex:1}
+.rooms::-webkit-scrollbar{display:none}
+.chip{appearance:none;border:1px solid transparent;background:var(--chip);color:var(--fg);font:500 13px/1 var(--f-body);padding:8px 12px;border-radius:999px;cursor:pointer;white-space:nowrap}
+.chip:hover{border-color:var(--line)}
+.chip[aria-pressed="true"]{background:var(--chip-on);color:var(--chip-on-fg)}
+.chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.main{display:grid;grid-template-columns:1fr 340px;min-height:0}
+.stage{position:relative;min-height:0;background:#E9E5DE}
+canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+canvas:active{cursor:grabbing}
+.hint{position:absolute;left:max(12px,env(safe-area-inset-left,0px));right:12px;width:fit-content;bottom:12px;font-size:12px;color:#5f5a54;background:rgba(251,250,247,.82);padding:6px 10px;border-radius:6px;pointer-events:none}
+.viewname{position:absolute;left:max(12px,env(safe-area-inset-left,0px));top:12px;font:400 20px/1.2 var(--f-display);color:#2B2926;background:rgba(251,250,247,.82);padding:6px 12px;border-radius:6px;pointer-events:none}
+aside{background:var(--panel);border-left:1px solid var(--line);overflow-y:auto;padding-block:20px;padding-left:20px;padding-right:max(20px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:18px;min-width:0}
+aside h2{font-family:var(--f-display);font-weight:400;font-size:28px;line-height:1.1;margin:0;text-wrap:balance}
+.meta{color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}
+.lbl{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:8px}
+.views{display:flex;flex-wrap:wrap;gap:6px}
+.views .chip{font-size:12px;padding:7px 10px}
+.concept{margin:0;max-width:62ch}
+.mats{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.mats li{display:grid;grid-template-columns:28px 1fr;gap:10px;align-items:center}
+.sw{width:28px;height:28px;border-radius:4px;border:1px solid rgba(0,0,0,.08)}
+.mats b{font-weight:500;display:block}
+.mats span{color:var(--muted);font-size:12px}
+.pdesc{margin:10px 0 12px;font-size:13px;color:var(--muted);max-width:62ch}
+.act{margin-top:10px;border-color:var(--accent);background:transparent;color:var(--accent)}
+.labels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.labels span{position:absolute;transform:translate(-50%,-50%);font:600 12px/1 var(--f-body);color:#2B2926;background:rgba(251,250,247,.9);padding:4px 7px;border-radius:4px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.labels span.mk{background:#2B2926;color:#FBFAF7;border-radius:999px;padding:4px 8px;font-size:11px;letter-spacing:.02em;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.legend li{grid-template-columns:28px 1fr}
+.legend .code{display:inline-block;min-width:34px;font:600 11px/1.6 var(--f-body);background:var(--fg);color:var(--panel);border-radius:999px;text-align:center;margin-right:6px}
+.timebox{display:grid;gap:8px;margin-top:10px}
+.tod{display:grid;grid-template-columns:48px 1fr;align-items:center;gap:10px;font:600 13px/1 var(--f-body);font-variant-numeric:tabular-nums}
+.tod input{width:100%;accent-color:var(--accent)}
+.labels svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.labels span.cl{background:#B23A2A;color:#fff;font-size:11px;padding:3px 6px}
+.labels span.cl.ok{background:#3F6E46}
+.labels span.rl{background:#1F1E1C;color:#FBFAF7;font-size:12px;padding:4px 7px;line-height:1.25;text-align:center}
+.labels span.rl small{display:block;font-weight:500;font-size:10.5px;opacity:.8}
+canvas.ruler{cursor:crosshair}
+.compass{position:absolute;right:max(12px,env(safe-area-inset-right,0px));top:12px;width:76px;height:76px;pointer-events:none}
+.zones{display:grid;gap:6px;margin-top:10px;border-top:1px solid var(--line);padding-top:10px}
+.zrow{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px}
+.zrow>span{font-size:13px;min-width:0}
+.zrow .seg{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+.zrow .chip{font-size:11.5px;padding:5px 9px}
+.zrow.two{grid-template-columns:1fr}
+.zrow.two .seg{justify-content:flex-start}
+.zone-sub{font-size:11px;color:var(--muted)}
+.note{font-size:12px;color:var(--muted);border-top:1px solid var(--line);padding-top:12px}
+@media (max-width:820px){
+  body{overflow:auto}
+  .app{height:auto;min-height:100%}
+  .main{grid-template-columns:1fr}
+  .stage{height:62vh;min-height:320px}
+  aside{border-left:0;border-top:1px solid var(--line);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+  header{flex-wrap:wrap}
+  header h1{font-size:19px}
+  .rooms{flex-basis:100%}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
 <div class="app">
   <header>
     <h1>Концепт по помещениям</h1>
@@ -1127,7 +1212,7 @@ const CODES={
  'С-2':['acc','Стена ТВ между стеллажами','декоративная известковая краска (лаймвош): по шпаклёвке и грунту, 2–3 слоя кистью крест-накрест; мягкая «облачная» фактура, матовая, паропроницаемая; тон — акцентный палитры'],
  'С-2а':['accFlat','Стена изголовья спальни 1','матовая краска акцентного тона, без фактуры'],
  'С-5':['hall','Стены прихожей','моющаяся матовая краска класса 1, средний тон палитры'],
- 'М-1а':['hall','Короб у двери слева (690×150, до +2.600)','закрывает щиты ЭЩ/ЩС; фасады заподлицо, в цвет стен прихожей (тоньше, если щиты встроенные)'],
+ 'М-1а':['hall','Короб у двери слева (690×150, до +2.600)','у двери — узкие щиты ЭЩ (48 мод., ≈300×700) и ЩС (медиабокс ≈300×450) друг над другом; со стороны лавки — полки 130 под ключи и зарядки; фасады в цвет стен прихожей'],
  'Р-1':['tall','Ревизионная дверца в коробе К1 (≈480×800, низ +100)','за ней на шахте К1: коллектор отопления на 3 контура и водяной узел кухни с аквастопом; фасад в декоре пеналов'],
  'С-6':['lower','Короб у К1 со скосом, плоскость зеркала у входа','ГКЛ по каркасу, краска тёмного тона кухни'],
  'С-3':['tileW','Стены санузлов','керамогранит 600×600 матовый на всю высоту, гидроизоляция'],
