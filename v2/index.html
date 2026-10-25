@@ -382,7 +382,7 @@ const MAT={
  tileW:{c:'#E0DAD0',t:'tile',uv:1/1.2,sp:.18,sh:40}, tileF:{c:'#BEB5A9',t:'tile',uv:1/1.2,sp:.12,sh:40}, small:{c:'#EEE7DC',t:'small',uv:1/0.6,sp:.45,sh:70},
  oak:{c:'#C6A073',t:'grain',uv:1.2,sp:.12,sh:30}, oakDark:{c:'#A9845C',t:'grain',uv:1.2,sp:.1,sh:30}, greige:{c:'#C4B49D',sp:.06,sh:20}, front:{c:'#EFE9E0',sp:.05,sh:20},
  quartz:{c:'#EDE9E2',sp:.35,sh:60}, graphite:{c:'#302E2C',sp:.25,sh:40}, steel:{c:'#BDBBB6',sp:.8,sh:80}, white:{c:'#F5F3EF',sp:.4,sh:60},
- plinth:{c:'#6A655F',sp:0}, fabOat:{c:'#D3C7B6',t:'fabric',uv:3,sp:.02}, fabLinen:{c:'#EEE9E1',t:'fabric',uv:3,sp:.02}, fabGrey:{c:'#BDB6AC',t:'fabric',uv:3,sp:.02},
+ plinth:{c:'#6A655F',sp:0}, pTop:{c:'#6E7F8E',t:'fabric',uv:3,sp:.02}, pPants:{c:'#33373D',sp:.03}, pSkin:{c:'#D8B39A',sp:.12,sh:20}, pShoe:{c:'#EDEDED',sp:.2}, fabOat:{c:'#D3C7B6',t:'fabric',uv:3,sp:.02}, fabLinen:{c:'#EEE9E1',t:'fabric',uv:3,sp:.02}, fabGrey:{c:'#BDB6AC',t:'fabric',uv:3,sp:.02},
  terra:{c:'#B4674B',t:'fabric',uv:3,sp:.02}, olive:{c:'#7E7A52',t:'fabric',uv:3,sp:.02}, navy:{c:'#3E4A5E',t:'fabric',uv:3,sp:.02},
  rug:{c:'#CFC3B2',t:'fabric',uv:1.5,sp:0}, rug2:{c:'#B9AE9F',t:'fabric',uv:1.5,sp:0},
  glass:{c:'#E4EEEC',a:.08,sp:1.2,sh:120,glass:1}, mirror:{c:'#B4BFC2',sp:1.0,sh:120}, sky:{c:'#FFFFFF',t:'sky',uv:1,emT:1.15,unlit:1},
@@ -445,7 +445,7 @@ const NO_SHADOW=new Set(['sky','glass','curtain','shadow','cs295','cs280','cs270
 function ortho(l,r,b,t,n,f){return[2/(r-l),0,0,0,0,2/(t-b),0,0,0,0,-2/(f-n),0,-(r+l)/(r-l),-(t+b)/(t-b),-(f+n)/(f-n),1]}
 
 /* ---------------- builder ---------------- */
-const OBJ_BASE={sofa:0,dining:30,island:30},NO_BOUND=new Set(['shadow','rug','rug2']);
+const OBJ_BASE={sofa:0,dining:30,island:30,person:0},NO_BOUND=new Set(['shadow','rug','rug2']);
 const rotF=(x,z,deg)=>{const a=deg*Math.PI/180,c=Math.cos(a),s=Math.sin(a);return[c*x+s*z,-s*x+c*z]};
 const EM_BASE={glow:'main',opal:'main',glowSoft:'acc',glowNight:'night'};
 class Builder{constructor(){this.g=new Map();this.walls=[];this.lights=[];this.labels=[];this.obj=null;this.ob={};this.pts={};this.cat='main';this.zone='';}
@@ -628,6 +628,13 @@ ROOMS.living={name:'Кухня-гостиная',area:'32,5 м²',H:2.95,poly:RO
    {const n=L>=2600?3:2,w=(L-400)/n;for(let k=0;k<n;k++)B.prism('fabOat','a',mp(rect2(x0+200+k*w+8,z0+30,x0+200+(k+1)*w-8,zb-240)),0.44,0.56)}
    [[x0+520,'terra'],[x0+1000,'fabLinen'],[x1-560,'olive']].forEach(([x,mt])=>B.box(mt,'a',x/1000,(zb-300)/1000,0.45,0.14,0,0.56,0.96));
    B.blob(cx/1000,(z0+Dp/2)/1000,(L+300)/1000,1.4,0)}
+  B.obj=null;
+  // person 1.75 m for scale — movable (just inside the entrance, facing into the flat); shoulders 460, depth ≈ 260
+  B.obj='person';{const x=14.45,z=10.3;
+   for(const sx of[-0.09,0.09]){B.box('pShoe','a',x+sx,z-0.03,0.1,0.27,0,0,0.07);B.box('pPants','a',x+sx,z,0.13,0.16,0,0.07,0.88)}
+   B.box('pPants','a',x,z,0.34,0.2,0,0.8,0.95);B.box('pTop','a',x,z,0.36,0.22,0,0.93,1.38);B.box('pTop','a',x,z,0.46,0.24,0,1.33,1.46);
+   for(const sx of[-0.265,0.265]){B.box('pTop','a',x+sx,z,0.085,0.11,0,1.0,1.45);B.box('pSkin','a',x+sx,z,0.07,0.09,0,0.8,1.0)}
+   B.cyl('pSkin','a',x,z,0.055,1.45,1.54,12);B.sphere('pSkin','a',[x,1.627,z],0.103,1.2);B.blob(x,z,0.7,0.5,0)}
   B.obj=null;
   // side table + plant
   B.cyl('oakDark','a',17.45,8.25,0.22,0.0,0.5,24);B.cyl('ceramic','a',17.45,8.25,0.06,0.5,0.75,16);B.blob(17.45,8.25,0.6,0.6,0);
@@ -1156,7 +1163,7 @@ function applyEmissive(){for(const k in MAT){const M=MAT[k];if(!M.zone)continue;
 let LS=null;
 /* ---------- movable furniture: sofa, dining set (table + chairs + pendant) ---------- */
 const IDENT=[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1];
-const FURN0={sofa:{x:0,z:0,a:0},dining:{x:0,z:0,a:0},island:{x:0,z:0,a:0}};let FURN=JSON.parse(JSON.stringify(FURN0));
+const FURN0={sofa:{x:0,z:0,a:0},dining:{x:0,z:0,a:0},island:{x:0,z:0,a:0},person:{x:0,z:0,a:0}};let FURN=JSON.parse(JSON.stringify(FURN0));
 try{const f=JSON.parse(localStorage.getItem('koncept2-furn-b')||'null');if(f&&typeof f==='object')for(const k in FURN0)if(f[k])FURN[k]=f[k]}catch(e){}
 let SOFA_DIM={L:2800,O:0};try{const d=JSON.parse(localStorage.getItem('koncept2-sofa-b')||'null');if(d&&d.L)SOFA_DIM={L:Math.min(3200,Math.max(2000,+d.L)),O:0}}catch(e){}
 let showIsland=true;try{showIsland=localStorage.getItem('koncept2-island')!=='0'}catch(e){}
@@ -1341,7 +1348,7 @@ dBtn.onclick=()=>{doorsOpen=!doorsOpen;dBtn.textContent=doorsOpen?'Закрыт�
 function rebuildKeep(){const c={eye:cam.eye,target:cam.target,fov:cam.fov,near:cam.near};buildScene(scene.key);Object.assign(cam,c);draw()}
 const mvBtn=document.getElementById('moveBtn'),rotBtn=document.getElementById('rotBtn'),rsBtn=document.getElementById('resetBtn'),hintEl=document.getElementById('hint'),hint0=hintEl.textContent;
 function updMoveUI(){const vis=scene&&(scene.key==='living'||scene.key==='all');{const sd=document.getElementById('sofaDim');sd.hidden=!(vis&&moveMode);document.getElementById('sofaL').textContent=SOFA_DIM.L;0}mvBtn.hidden=!vis;mvBtn.textContent=moveMode?'Готово':'Двигать мебель';rotBtn.hidden=!(vis&&moveMode&&selObj);rsBtn.hidden=!(vis&&moveMode);
- rotBtn.textContent='Повернуть '+({sofa:'диван',dining:'обеденную группу',island:'остров'}[selObj]||'')+' на 15°';hintEl.textContent=moveMode?'Тяните диван, обеденную группу или остров · красным — проход меньше 90 см':hint0;
+ rotBtn.textContent='Повернуть '+({sofa:'диван',dining:'обеденную группу',island:'остров',person:'человека'}[selObj]||'')+' на 15°';hintEl.textContent=moveMode?'Тяните человека, диван, обеденную группу или остров · красным — проход меньше 90 см':hint0;
  isBtn.hidden=!vis;isBtn.textContent=showIsland?'Скрыть остров':'Показать остров';chBtn.hidden=!vis;chBtn.textContent=chairsIn?'Выдвинуть стулья':'Задвинуть стулья'}
 const lmEl=document.getElementById('lmodes'),dtEl=document.getElementById('dates'),todEl=document.getElementById('tod'),todLbl=document.getElementById('todLbl'),sunEl=document.getElementById('sunInfo');
 const LMODES=[['all','Весь свет'],['main','Только основной'],['acc','Только подсветка'],['night','Ночники'],['off','Выключить всё']];
