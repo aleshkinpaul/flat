@@ -225,7 +225,7 @@ canvas.ruler{cursor:crosshair}
         <button class="chip act" type="button" id="rulerBtn">Линейка</button>
         <button class="chip act" type="button" id="rulerClr" hidden>Очистить замеры</button>
         <button class="chip act" type="button" id="rotBtn" hidden>Повернуть на 15°</button>
-        <span class="sdim" id="sofaDim" hidden><span class="sr"><span class="sl">Длина дивана</span><button class="chip act" type="button" data-k="L" data-d="-100" aria-label="Короче">−</button><b id="sofaL">2200</b><button class="chip act" type="button" data-k="L" data-d="100" aria-label="Длиннее">+</button></span><span class="sr"><span class="sl">Оттоманка</span><button class="chip act" type="button" data-k="O" data-d="-100" aria-label="Короче">−</button><b id="sofaO">1600</b><button class="chip act" type="button" data-k="O" data-d="100" aria-label="Длиннее">+</button></span></span>
+        <span class="sdim" id="sofaDim" hidden><span class="sr"><span class="sl">Длина дивана</span><button class="chip act" type="button" data-k="L" data-d="-100" aria-label="Короче">−</button><b id="sofaL">2200</b><button class="chip act" type="button" data-k="L" data-d="100" aria-label="Длиннее">+</button></span></span>
         <button class="chip act" type="button" id="resetBtn" hidden>Вернуть расстановку</button>
         <button class="chip act" type="button" id="drenchBtn" hidden>Прихожая в одном цвете</button>
         <button class="chip act" type="button" id="doorsBtn" hidden>Открыть двери</button>
@@ -445,7 +445,7 @@ const NO_SHADOW=new Set(['sky','glass','curtain','shadow','cs295','cs280','cs270
 function ortho(l,r,b,t,n,f){return[2/(r-l),0,0,0,0,2/(t-b),0,0,0,0,-2/(f-n),0,-(r+l)/(r-l),-(t+b)/(t-b),-(f+n)/(f-n),1]}
 
 /* ---------------- builder ---------------- */
-const OBJ_BASE={sofa:30,dining:30,island:30},NO_BOUND=new Set(['shadow','rug','rug2']);
+const OBJ_BASE={sofa:0,dining:30,island:30},NO_BOUND=new Set(['shadow','rug','rug2']);
 const rotF=(x,z,deg)=>{const a=deg*Math.PI/180,c=Math.cos(a),s=Math.sin(a);return[c*x+s*z,-s*x+c*z]};
 const EM_BASE={glow:'main',opal:'main',glowSoft:'acc',glowNight:'night'};
 class Builder{constructor(){this.g=new Map();this.walls=[];this.lights=[];this.labels=[];this.obj=null;this.ob={};this.pts={};this.cat='main';this.zone='';}
@@ -618,20 +618,19 @@ ROOMS.living={name:'Кухня-гостиная',area:'32,5 м²',H:2.95,poly:RO
   B.box('graphite','a',15.77,7.035,1.23,0.03,0,0.92,1.63);B.box('black','a',15.77,7.052,1.2,0.004,0,0.935,1.615);
   // --- sofa (L), cushions, rug — movable object
   B.obj='sofa';
-  // L-sofa parametrised (mm): corner B at the chaise end stays put; L — length along the main back, O — length of the chaise (ottoman), seat depth 900, chaise width 900
-  {const L=SOFA_DIM.L,O=SOFA_DIM.O,d1=[C30,0.5],d2=[0.5,-C30],Bc=[16249,9564],P=(base,a,b)=>[base[0]+d1[0]*a+d2[0]*b,base[1]+d1[1]*a+d2[1]*b];
-   const A=P(Bc,-L,0),C=P(Bc,0,O),D=P(Bc,-900,O),E=P(Bc,-900,900),F=P(A,0,900);R.sofaPts={A,B:Bc,C,L,O};
-   const SOFA=mp([A,Bc,C,D,E,F]);
-   B.flat('rug','a',mp(rotRect(15650,8350,2600,1900,0)),0.006,true);B.blob(15.65,8.35,2.8,2.1,0);
-   B.prism('fabGrey','a',SOFA,0.1,0.44,{});{const q=P(A,L/2,450);B.box('graphite','a',q[0]/1000,q[1]/1000,(L-200)/1000,0.5,30,0,0.1)}
-   const m1=P(A,L/2,160),m2=P(Bc,-160,O/2);
-   B.prism('fabGrey','a',mp(rotRect(m1[0],m1[1],L,180,30)),0.44,0.82);B.prism('fabGrey','a',mp(rotRect(m2[0],m2[1],O,180,-60)),0.44,0.82);
-   {const q=P(A,90,450);B.box('fabOat','a',q[0]/1000,q[1]/1000,0.18,0.92,30,0.44,0.66)}
-   [[P(A,0.313*L,218),'terra',30],[P(A,0.574*L,226),'fabLinen',30],[P(Bc,-108,0.37*O),'olive',-60]].forEach(([q,mt,a])=>B.box(mt,'a',q[0]/1000,q[1]/1000,0.45,0.14,a,0.46,0.86));
-   {const q=P(A,L/2+100,500);B.blob(q[0]/1000,q[1]/1000,(L+400)/1000,1.5,30)}}
+  // variant 2: straight deep sofa (default 2800 × 1100) facing the TV, centred on the TV axis; the back of the sofa 1500 from the TV screen
+  {const L=SOFA_DIM.L,Dp=1100,cx=15770,zb=7050+1500,x0=cx-L/2,x1=cx+L/2,z0=zb-Dp;R.sofaPts={x0,x1,z0,zb,L};
+   B.flat('rug','a',mp(rotRect(cx,z0-150,Math.min(3200,L+200),1700,0)),0.006,true);B.blob(cx/1000,(z0-150)/1000,3.2,1.9,0);
+   B.prism('graphite','a',mp(rect2(x0+120,z0+120,x1-120,zb-120)),0,0.1);
+   B.prism('fabGrey','a',mp(rect2(x0,z0,x1,zb)),0.1,0.44,{});
+   B.prism('fabGrey','a',mp(rect2(x0,zb-230,x1,zb)),0.44,0.84);
+   B.prism('fabGrey','a',mp(rect2(x0,z0,x0+200,zb-230)),0.44,0.64);B.prism('fabGrey','a',mp(rect2(x1-200,z0,x1,zb-230)),0.44,0.64);
+   {const n=L>=2600?3:2,w=(L-400)/n;for(let k=0;k<n;k++)B.prism('fabOat','a',mp(rect2(x0+200+k*w+8,z0+30,x0+200+(k+1)*w-8,zb-240)),0.44,0.56)}
+   [[x0+520,'terra'],[x0+1000,'fabLinen'],[x1-560,'olive']].forEach(([x,mt])=>B.box(mt,'a',x/1000,(zb-300)/1000,0.45,0.14,0,0.56,0.96));
+   B.blob(cx/1000,(z0+Dp/2)/1000,(L+300)/1000,1.4,0)}
   B.obj=null;
   // side table + plant
-  B.cyl('oakDark','a',14.25,7.75,0.22,0.0,0.5,24);B.cyl('ceramic','a',14.25,7.75,0.06,0.5,0.75,16);B.blob(14.25,7.75,0.6,0.6,0);
+  B.cyl('oakDark','a',17.45,8.25,0.22,0.0,0.5,24);B.cyl('ceramic','a',17.45,8.25,0.06,0.5,0.75,16);B.blob(17.45,8.25,0.6,0.6,0);
   plant(B,18.08,7.45,1.7);
   // --- bench-sill W3 + cushions
   B.prism('grille','a',mp(rect2(18298,6637,20668,7017)),0,0.56,{top:false});B.prism('oak','a',mp(rect2(18278,6637,20688,7037)),0.56,0.6,{bottom:true});
@@ -1158,11 +1157,11 @@ let LS=null;
 /* ---------- movable furniture: sofa, dining set (table + chairs + pendant) ---------- */
 const IDENT=[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1];
 const FURN0={sofa:{x:0,z:0,a:0},dining:{x:0,z:0,a:0},island:{x:0,z:0,a:0}};let FURN=JSON.parse(JSON.stringify(FURN0));
-try{const f=JSON.parse(localStorage.getItem('koncept2-furn')||'null');if(f&&typeof f==='object')for(const k in FURN0)if(f[k])FURN[k]=f[k]}catch(e){}
-let SOFA_DIM={L:2200,O:1600};try{const d=JSON.parse(localStorage.getItem('koncept2-sofa')||'null');if(d&&d.L&&d.O)SOFA_DIM={L:Math.min(3200,Math.max(1800,+d.L)),O:Math.min(2000,Math.max(1200,+d.O))}}catch(e){}
+try{const f=JSON.parse(localStorage.getItem('koncept2-furn-b')||'null');if(f&&typeof f==='object')for(const k in FURN0)if(f[k])FURN[k]=f[k]}catch(e){}
+let SOFA_DIM={L:2800,O:0};try{const d=JSON.parse(localStorage.getItem('koncept2-sofa-b')||'null');if(d&&d.L)SOFA_DIM={L:Math.min(3200,Math.max(2000,+d.L)),O:0}}catch(e){}
 let showIsland=true;try{showIsland=localStorage.getItem('koncept2-island')!=='0'}catch(e){}
 let chairsIn=false;try{chairsIn=localStorage.getItem('koncept2-chairs')==='1'}catch(e){}
-const saveFurn=()=>{try{localStorage.setItem('koncept2-furn',JSON.stringify(FURN))}catch(e){}};
+const saveFurn=()=>{try{localStorage.setItem('koncept2-furn-b',JSON.stringify(FURN))}catch(e){}};
 let moveMode=false,selObj=null;
 function objPivot(id){const b=scene&&scene.objs[id];if(!b)return[0,0];return rotF((b.mn[0]+b.mx[0])/2,(b.mn[2]+b.mx[2])/2,-(OBJ_BASE[id]||0))}
 function footprint(id){const M=objM(id);return scene.hulls[id].map(([x,z])=>{const q=applyM(M,[x,0,z]);return[q[0],q[2]]})}
@@ -1341,7 +1340,7 @@ lBtn.onclick=()=>{laundryOpen=!laundryOpen;lBtn.textContent=laundryOpen?'Зак�
 dBtn.onclick=()=>{doorsOpen=!doorsOpen;dBtn.textContent=doorsOpen?'Закрыть двери':'Открыть двери';const c={eye:cam.eye,target:cam.target,fov:cam.fov,near:cam.near};buildScene(scene.key);Object.assign(cam,c);draw()};
 function rebuildKeep(){const c={eye:cam.eye,target:cam.target,fov:cam.fov,near:cam.near};buildScene(scene.key);Object.assign(cam,c);draw()}
 const mvBtn=document.getElementById('moveBtn'),rotBtn=document.getElementById('rotBtn'),rsBtn=document.getElementById('resetBtn'),hintEl=document.getElementById('hint'),hint0=hintEl.textContent;
-function updMoveUI(){const vis=scene&&(scene.key==='living'||scene.key==='all');{const sd=document.getElementById('sofaDim');sd.hidden=!(vis&&moveMode);document.getElementById('sofaL').textContent=SOFA_DIM.L;document.getElementById('sofaO').textContent=SOFA_DIM.O}mvBtn.hidden=!vis;mvBtn.textContent=moveMode?'Готово':'Двигать мебель';rotBtn.hidden=!(vis&&moveMode&&selObj);rsBtn.hidden=!(vis&&moveMode);
+function updMoveUI(){const vis=scene&&(scene.key==='living'||scene.key==='all');{const sd=document.getElementById('sofaDim');sd.hidden=!(vis&&moveMode);document.getElementById('sofaL').textContent=SOFA_DIM.L;0}mvBtn.hidden=!vis;mvBtn.textContent=moveMode?'Готово':'Двигать мебель';rotBtn.hidden=!(vis&&moveMode&&selObj);rsBtn.hidden=!(vis&&moveMode);
  rotBtn.textContent='Повернуть '+({sofa:'диван',dining:'обеденную группу',island:'остров'}[selObj]||'')+' на 15°';hintEl.textContent=moveMode?'Тяните диван, обеденную группу или остров · красным — проход меньше 90 см':hint0;
  isBtn.hidden=!vis;isBtn.textContent=showIsland?'Скрыть остров':'Показать остров';chBtn.hidden=!vis;chBtn.textContent=chairsIn?'Выдвинуть стулья':'Задвинуть стулья'}
 const lmEl=document.getElementById('lmodes'),dtEl=document.getElementById('dates'),todEl=document.getElementById('tod'),todLbl=document.getElementById('todLbl'),sunEl=document.getElementById('sunInfo');
@@ -1379,7 +1378,7 @@ rBtn.onclick=()=>{rulerMode=!rulerMode;if(rulerMode&&moveMode){moveMode=false;se
 rClr.onclick=()=>{rulerLines=[];rulerPts=[];rulerHover=null;updRulerUI();draw()};
 mvBtn.onclick=()=>{if(!moveMode&&rulerMode){rulerMode=false;updRulerUI()}moveMode=!moveMode;if(!moveMode)selObj=null;updMoveUI();draw()};
 rotBtn.onclick=()=>{if(!selObj)return;FURN[selObj].a=(FURN[selObj].a+15)%360;saveFurn();draw()};
-document.querySelectorAll('#sofaDim button').forEach(b=>b.onclick=()=>{const k=b.dataset.k,lim=k==='L'?[1800,3200]:[1200,2000];const v=Math.min(lim[1],Math.max(lim[0],SOFA_DIM[k]+(+b.dataset.d)));if(v===SOFA_DIM[k])return;SOFA_DIM[k]=v;try{localStorage.setItem('koncept2-sofa',JSON.stringify(SOFA_DIM))}catch(e){}selObj='sofa';rebuildKeep();updMoveUI()});
+document.querySelectorAll('#sofaDim button').forEach(b=>b.onclick=()=>{const k=b.dataset.k,lim=k==='L'?[2000,3200]:[0,0];const v=Math.min(lim[1],Math.max(lim[0],SOFA_DIM[k]+(+b.dataset.d)));if(v===SOFA_DIM[k])return;SOFA_DIM[k]=v;try{localStorage.setItem('koncept2-sofa-b',JSON.stringify(SOFA_DIM))}catch(e){}selObj='sofa';rebuildKeep();updMoveUI()});
 rsBtn.onclick=()=>{FURN=JSON.parse(JSON.stringify(FURN0));saveFurn();draw()};
 sBtn.onclick=()=>{storageOpen=!storageOpen;sBtn.textContent=storageOpen?'Закрыть кладовую':'Открыть кладовую';rebuildKeep()};
 hBtn.onclick=()=>{hallDrench=!hallDrench;hBtn.textContent=hallDrench?'Прихожая: портал в тоне кухни':'Прихожая в одном цвете';rebuildKeep()};
