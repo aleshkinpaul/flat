@@ -112,6 +112,7 @@ html,body{height:100%}
 body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:14px;line-height:1.5;overflow:hidden}
 .app{height:100%;display:grid;grid-template-rows:auto 1fr;}
 header{display:flex;align-items:center;gap:16px;padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));border-bottom:1px solid var(--line);min-width:0}
+.variants{display:flex;gap:4px;flex:none}.variants .chip{text-decoration:none;padding:6px 10px;font-size:12px}.variants .chip[aria-current]{background:var(--chip-on);color:var(--chip-on-fg)}
 header h1{font-family:var(--f-display);font-weight:400;font-size:22px;margin:0;white-space:nowrap;letter-spacing:.01em}
 .rooms{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;min-width:0;flex:1}
 .rooms::-webkit-scrollbar{display:none}
@@ -180,6 +181,7 @@ canvas.ruler{cursor:crosshair}
 <div class="app">
   <header>
     <h1>Концепт по помещениям</h1>
+    <nav class="variants" aria-label="Варианты планировки"><a class="chip" id="var1" href="#" aria-current="page">Вариант 1</a><a class="chip" id="var2" href="#">Вариант 2</a></nav>
     <nav class="rooms" id="rooms" aria-label="Помещения"></nav>
   </header>
   <div class="main">
@@ -1392,6 +1394,8 @@ window.__setRoom=(k,i)=>selectScene(k,i||0);window.__views=k=>SCENES[k].views.le
 applyPalette(pal0);selectScene(start,0);applyPalette(pal0);
 })();
 </script>
+<script>(()=>{const gh=/github\.io$/.test(location.hostname);const u1=gh?'/flat/':'https://claude.ai/artifact/5BTkVCvUNXm2MZChehScXT',u2=gh?'/flat/v2/':'https://claude.ai/artifact/TiN7ZBaWiCvLoF3ixsYSLF';const a1=document.getElementById('var1'),a2=document.getElementById('var2');a1.href=u1;a2.href=u2;if(!gh){a1.target=a2.target='_blank';a1.rel=a2.rel='noopener'}document.getElementById('var1').onclick=e=>e.preventDefault()})()</script>
+
 
 </body>
 </html>
