@@ -618,8 +618,8 @@ ROOMS.living={name:'Кухня-гостиная',area:'32,5 м²',H:2.95,poly:RO
   B.box('graphite','a',15.77,7.035,1.23,0.03,0,0.92,1.63);B.box('black','a',15.77,7.052,1.2,0.004,0,0.935,1.615);
   // --- sofa (L), cushions, rug — movable object
   B.obj='sofa';
-  // variant 2: straight deep sofa (default 2800 × 1100) facing the TV, centred on the TV axis; the back of the sofa 1500 from the TV screen
-  {const L=SOFA_DIM.L,Dp=1100,cx=15770,zb=7050+1500,x0=cx-L/2,x1=cx+L/2,z0=zb-Dp;R.sofaPts={x0,x1,z0,zb,L};
+  // variant 2: straight deep sofa (default 2800 × 1100) facing the TV, centred on the TV axis; the back of the sofa 2300 from the TV screen (1500 + 800)
+  {const L=SOFA_DIM.L,Dp=1100,cx=15770,zb=7050+2300,x0=cx-L/2,x1=cx+L/2,z0=zb-Dp;R.sofaPts={x0,x1,z0,zb,L};
    B.flat('rug','a',mp(rotRect(cx,z0-150,Math.min(3200,L+200),1700,0)),0.006,true);B.blob(cx/1000,(z0-150)/1000,3.2,1.9,0);
    B.prism('graphite','a',mp(rect2(x0+120,z0+120,x1-120,zb-120)),0,0.1);
    B.prism('fabGrey','a',mp(rect2(x0,z0,x1,zb)),0.1,0.44,{});
