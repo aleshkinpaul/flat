@@ -588,16 +588,17 @@ const ROOMS={};
 // v16 ceilings: ГКЛ +2.650 over the hall (along the tile joint, stopped by the mirror wall) and along the whole kitchen perimeter
 // (over the tall units, the box at K1 with its bevel, and over the niche cabinets to their fronts); living stretch ceiling +2.950 fixed to the soffit frame
 const BEV=hpt(1690,600);          // start of the 30° bevel on the box front
-const HREG=[[12148,7940],[15332,9778],hpt(-80,600),BEV,[16861,11350],[16272,11010],[16064,11370],[14832,10644],[14586,11071],[14419,11184],[13584,10489],[13511,10419],[13857,9820],[12792,9191],[12949,8872],[11948,8286]];
-const NICHE=[kpt(0,600),kpt(1590,600),[18783,11191],[19307,11494],[18517,12862],[18391,12790],[18277,12987],[16506,11965],[16653,11710]];
-const LIV_HIGH=[[13568,7002],[13568,7302],[13488,7302],[12148,7940],[15332,9778],hpt(-80,600),BEV,[16861,11350],kpt(0,600),kpt(1590,600),[18783,11191],[21391,6637],[17990,6637],[17990,7002]];
-const DROP_EDGES=[[[13488,7302],[12148,7940],[15332,9778],hpt(-80,600),BEV,[16861,11350]],[kpt(0,600),kpt(1590,600),[18783,11191]]];
-const HREG_M=mp(HREG),NICHE_M=mp(NICHE);const ceilLiv=(x,z)=>(pip([x,z],HREG_M)||pip([x,z],NICHE_M))?2.65:2.95;
+// v16 (album 25.10): one ГКЛ +2.650 region — hall, tall units, K1 box, niche and the work zone in front of it, edge = straight line
+// along the parquet/tile joint (1306 from the kitchen wall line), from the perpendicular at the TV-niche corner to the fronts of the right-wall uppers (350 from the wall), then along them to the ledge
+const PT2_HALL=[[13568,7302],[12936,8396],[18752,11754],[19004,11318],[19307,11494],[18517,12862],[18391,12790],[18277,12987],[16506,11965],[16653,11710],[16861,11350],[16272,11010],[16064,11370],[14832,10644],[14586,11071],[14419,11184],[13584,10489],[13511,10419],[13857,9820],[12792,9191],[12949,8872],[11948,8286],[12148,7940],[13488,7302]];
+const PT1_LIVING=[[13568,7002],[13568,7302],[12936,8396],[18752,11754],[19004,11318],[18783,11191],[21391,6637],[17990,6637],[17990,7002]];
+const DROP_EDGES=[[[13568,7302],[12936,8396],[18752,11754],[19004,11318]]];
+const PT2_M=mp(PT2_HALL);const ceilLiv=(x,z)=>pip([x,z],PT2_M)?2.65:2.95;
 
 ROOMS.living={name:'Кухня-гостиная',area:'32,5 м²',H:2.95,poly:ROOM2_POLY,
  wallMat:E=>{const mx=(E.a[0]+E.b[0])/2,mz=(E.a[1]+E.b[1])/2;if(mx>16.0&&mx<16.9&&mz>10.95&&mz<11.75)return'tall';if(mx<14.6&&mz>8.3)return'hall';return null},
  floors:[{poly:PARQ2,mat:'oakFloor'},{poly:TILE2,mat:'tileHall',rot:30,o:KW0}],
- ceilings:[{poly:HREG,H:2.65,note:'ГКЛ, прихожая',label:[13700,9350]},{poly:NICHE,H:2.65,note:'над кухней',label:kpt(900,300)},{poly:LIV_HIGH,H:2.95,note:'натяжной',label:[18200,8700]}],
+ ceilings:[{poly:PT2_HALL,H:2.65,note:'ГКЛ, прихожая и кухня',label:[13700,9350]},{poly:PT1_LIVING,H:2.95,note:'натяжной',label:[18200,8700]}],
  open:[[[13488,7302],[12148,7940]]],
  windows:[{p0:[18298,6637],p1:[20668,6637],sill:600,top:2600,bench:1,curtainBottom:0.61}],
  key:{d:[0.15,-0.75,0.65],c:'#FFF6EA',k:0.55},
@@ -660,15 +661,15 @@ ROOMS.living={name:'Кухня-гостиная',area:'32,5 м²',H:2.95,poly:RO
   const KT=2.60,hq=(u0,v0,u1,v1)=>mp([hpt(u0,v0),hpt(u1,v0),hpt(u1,v1),hpt(u0,v1)]),ln=(pts,y,vis)=>B.prism('plinth',vis||'a',pts,y,y+0.004,{bottom:true});
   // mirror-wall stub, now 600 deep (flush with the tall units)
   B.prism('tall',vMR,hq(-80,0,0,600),0,2.65,{});
-  // tall unit 1: drawers / oven / microwave / door / antresol door
+  // tall unit 1 (at the mirror wall, v16 25.10): integrated fridge (freezer below), door above to +2.600
   B.prism('tall',vHW,hq(2,0,598,600),0.1,KT);B.prism('kplinth',vHW,hq(20,0,580,550),0,0.1);
-  B.prism('black',vHW,hq(28,598,572,606),0.76,1.34);B.prism('black',vHW,hq(28,598,572,606),1.37,1.75);B.prism('steel',vHW,hq(70,606,530,622),1.29,1.31);
-  for(const y of[0.43,0.745,1.755,2.15])ln(hq(2,600,598,603),y,vHW);
-  B.prism('handle',vHW,hq(250,600,350,618),0.62,0.64);B.prism('handle',vHW,hq(250,600,350,618),0.33,0.35);B.prism('handle',vHW,hq(520,600,536,618),1.85,2.05);
-  // tall unit 2: integrated fridge (freezer below), door above, antresol
+  for(const y of[0.82,1.88])ln(hq(2,600,598,603),y,vHW);
+  B.prism('handle',vHW,hq(540,600,556,618),0.95,1.5);B.prism('handle',vHW,hq(540,600,556,618),0.5,0.75);B.prism('handle',vHW,hq(540,600,556,618),1.95,2.15);
+  // tall unit 2 (at K1): drawers / oven +0.760…+1.340 / microwave +1.370…+1.750 / door to +2.600
   B.prism('tall',vHW,hq(602,0,1198,600),0.1,KT);B.prism('kplinth',vHW,hq(620,0,1180,550),0,0.1);
-  for(const y of[0.82,1.88,2.15])ln(hq(602,600,1198,603),y,vHW);
-  B.prism('handle',vHW,hq(1140,600,1156,618),0.95,1.5);B.prism('handle',vHW,hq(1140,600,1156,618),0.5,0.75);B.prism('handle',vHW,hq(1140,600,1156,618),1.95,2.1);
+  B.prism('black',vHW,hq(628,598,1172,606),0.76,1.34);B.prism('black',vHW,hq(628,598,1172,606),1.37,1.75);B.prism('steel',vHW,hq(670,606,1130,622),1.29,1.31);
+  for(const y of[0.43,0.745,1.755])ln(hq(602,600,1198,603),y,vHW);
+  B.prism('handle',vHW,hq(850,600,950,618),0.62,0.64);B.prism('handle',vHW,hq(850,600,950,618),0.33,0.35);B.prism('handle',vHW,hq(1120,600,1136,618),1.85,2.15);
   // box around K1, flush with the tall units, 30° bevel from the box front to the shaft corner
   B.prism('tall','a',mp([hpt(1200,0),[16064,11370],[16272,11010],[16861,11350],BEV,hpt(1200,600)]),0.1,2.65,{});B.prism('kplinth','a',mp([hpt(1200,0),[16064,11370],[16272,11010],[16861,11350],hpt(1690,560),hpt(1200,560)]),0,0.1,{});
   // v16: revision door in the lower part of the box front — heating collector + kitchen water node mounted on the K1 shaft inside
@@ -679,37 +680,35 @@ ROOMS.living={name:'Кухня-гостиная',area:'32,5 м²',H:2.95,poly:RO
   B.prism('kplinth','a',mp(krect(0,0,1640,550)),0,0.1);B.prism('kplinth','a',mp(krectr(0,0,1581,550)),0,0.1);
   if(PALETTES[palIdx].handles){// overlay black bar handles on the base fronts (uppers — handle-less)
    const hb=(u0,len,y)=>B.prism('handle','a',mp(krect(u0,600,len,18)),y,y+0.016),hr=(s0,len,y)=>B.prism('handle','a',mp(krectr(s0,600,len,18)),y,y+0.016);
-   hb(150,300,0.80);hb(750,300,0.80);[0.80,0.58,0.32].forEach(y=>hb(1245,300,y));hr(150,300,0.80);[0.80,0.58,0.32].forEach(y=>hr(750,300,y));hr(1240,300,0.80)}
+   hb(150,300,0.80);hb(750,300,0.80);[0.80,0.58,0.32].forEach(y=>hb(1245,300,y));[0.80,0.58,0.32].forEach(y=>hr(250,300,y));hr(850,300,0.80)}
   B.prism('quartz','a',mp(krect(0,0,1570,620)),0.87,0.9,{bottom:true});B.prism('quartz','a',mp(krect(1570,0,475,228)),0.87,0.9,{bottom:true});B.prism('quartz','a',mp(krectr(0,0,1581,620)),0.87,0.9,{bottom:true});
   [600,1200].forEach(u=>B.prism('plinth','a',mp(krect(u-1,600,2,4)),0.1,0.87,{top:false}));
-  [600,1200].forEach(t=>B.prism('plinth','a',mp(krectr(t-1,600,2,4)),0.1,0.87,{top:false}));
-  for(const y of[0.36,0.62])ln(mp(krectr(600,600,600,4)),y);
+  [800,1200].forEach(t=>B.prism('plinth','a',mp(krectr(t-1,600,2,4)),0.1,0.87,{top:false}));
+  for(const y of[0.36,0.62])ln(mp(krectr(0,600,800,4)),y);
   for(const y of[0.36,0.62])ln(mp(krect(1200,600,390,4)),y);
   // sink 600 + tap, dishwasher 600 (integrated panel), hob 600 on the right run
   B.prism('steel','a',mp(krect(70,90,460,400)),0.9,0.903);{const a=m(kpt(300,45)),b=m(kpt(300,250));B.cyl('graphite','a',a[0],a[1],0.018,0.9,1.24,12);
    B.prism('graphite','a',[[a[0]-0.012,a[1]-0.012],[b[0]-0.012,b[1]-0.012],[b[0]+0.012,b[1]+0.012],[a[0]+0.012,a[1]+0.012]],1.215,1.24)}
-  B.prism('black','a',mp(krectr(620,40,560,520)),0.9,0.905);
-  // uppers 350 deep (1.50–2.15); over the hob a shorter unit with a built-in hood (≥650 above the hob)
-  B.prism('upper',vKB,mp(krect(0,0,1840,350)),1.5,2.15,{bottom:true});B.prism('upper',vKB,mp(krect(1840,0,205,228)),1.5,2.15,{bottom:true});
-  B.prism('upper',vKR,mp(krectr(0,0,600,350)),1.5,2.15,{bottom:true});B.prism('upper',vKR,mp(krectr(600,0,600,350)),1.6,2.15,{bottom:true});B.prism('upper',vKR,mp(krectr(1200,0,381,350)),1.5,2.15,{bottom:true});
-  B.prism('graphite',vKR,mp(krectr(610,0,580,340)),1.58,1.6,{bottom:true});
-  [600,1200].forEach(u=>B.prism('plinth',vKB,mp(krect(u-1,350,2,4)),1.5,2.15,{top:false}));[600,1200].forEach(t=>B.prism('plinth',vKR,mp(krectr(t-1,350,2,4)),1.5,2.15,{top:false}));
-  // antresols 600 deep (2.15–2.60)
-  B.prism('antresol',vKB,mp(krect(0,0,1590,600)),2.15,KT,{bottom:true});B.prism('antresol',vKB,mp(krect(1590,0,455,228)),2.15,KT,{bottom:true});B.prism('antresol',vKR,mp(krectr(0,0,1581,600)),2.15,KT,{bottom:true});
-  [600,1200].forEach(u=>B.prism('plinth',vKB,mp(krect(u-1,600,2,4)),2.15,KT,{top:false}));[600,1200].forEach(t=>B.prism('plinth',vKR,mp(krectr(t-1,600,2,4)),2.15,KT,{top:false}));
-  // LED under the uppers and in the antresol overhang
-  B.prism('glowSoft',vKB,mp(krect(0,300,1840,25)),1.492,1.496,{bottom:true,top:false});B.prism('glowSoft',vKR,mp(krectr(0,300,600,25)),1.492,1.496,{bottom:true,top:false});B.prism('glowSoft',vKR,mp(krectr(1200,300,381,25)),1.492,1.496,{bottom:true,top:false});
-  B.prism('glowSoft',vKB,mp(krect(0,560,1590,25)),2.142,2.146,{bottom:true,top:false});B.prism('glowSoft',vKR,mp(krectr(0,560,1581,25)),2.142,2.146,{bottom:true,top:false});
+  B.prism('black','a',mp(krectr(200,40,560,520)),0.9,0.905);   // hob 600 on the 800 drawer unit, s 180–780 from the ledge
+  // uppers 350 deep +1.500…+2.600 (v16 25.10: no antresols); hood cabinet 800 at the end wall over the hob, bottom +1.600
+  B.prism('upper',vKB,mp(krect(0,0,1840,350)),1.5,KT,{bottom:true});B.prism('upper',vKB,mp(krect(1840,0,205,228)),1.5,KT,{bottom:true});
+  B.prism('upper',vKR,mp(krectr(0,0,800,350)),1.6,KT,{bottom:true});B.prism('upper',vKR,mp(krectr(800,0,781,350)),1.5,KT,{bottom:true});
+  B.prism('graphite',vKR,mp(krectr(180,0,600,340)),1.58,1.6,{bottom:true});
+  [600,1200].forEach(u=>B.prism('plinth',vKB,mp(krect(u-1,350,2,4)),1.5,KT,{top:false}));[800,1200].forEach(t=>B.prism('plinth',vKR,mp(krectr(t-1,350,2,4)),1.5,KT,{top:false}));
+  // LED only under the uppers (Л1, Л2)
+  B.prism('glowSoft',vKB,mp(krect(0,300,1840,25)),1.492,1.496,{bottom:true,top:false});B.prism('glowSoft',vKR,mp(krectr(0,300,800,25)),1.592,1.596,{bottom:true,top:false});B.prism('glowSoft',vKR,mp(krectr(800,300,781,25)),1.492,1.496,{bottom:true,top:false});
   // apron: quartz on the back wall, right wall and the box side above the sink
-  B.prism('quartz','a',mp(krect(0,0,2045,8)),0.9,1.5,{top:false});B.prism('quartz','a',mp(krectr(0,0,1581,8)),0.9,1.5,{top:false});B.prism('quartz','a',mp(krect(0,8,8,592)),0.9,1.5,{top:false});
+  B.prism('quartz','a',mp(krect(0,0,2045,8)),0.9,1.5,{top:false});B.prism('quartz','a',mp(krectr(0,0,800,8)),0.9,1.6,{top:false});B.prism('quartz','a',mp(krectr(800,0,781,8)),0.9,1.5,{top:false});B.prism('quartz','a',mp(krect(0,8,8,592)),0.9,1.5,{top:false});
   B.cat='acc';B.light([...(p=>[p[0],1.4,p[1]])(m(kpt(900,500)))],'#FFE7C6',0.3);B.cat='main';
   // spots: hall К1–К3 and П0 in the +2.650 ceiling; kitchen spots 300 in front of the fronts in the +2.950 ceiling
-  B.zone='hall';[-4132,-3432,-2732].forEach(u=>{const p=m(kpt(u,1000));spot(B,p[0],p[1],2.65)});{const p=m(kpt(-2732,60));spot(B,p[0],p[1],2.65)}B.zone='kitchen';
-  [hpt(300,900),hpt(900,900),kpt(300,900),kpt(900,900),kpt(1290,1500)].forEach(q=>{const p=m(q);spot(B,p[0],p[1],ceilLiv(p[0],p[1]))});
+  B.zone='hall';[-4132,-3432,-2732].forEach(u=>{const p=m(kpt(u,1100));spot(B,p[0],p[1],2.65)});{const p=m(kpt(-2732,60));spot(B,p[0],p[1],2.65)}B.zone='kitchen';
+  // К4–К6 on the same line 1100 (193 in front of the tall units), К7–К9 on the line 900 from the niche wall, К10 in the stretch ceiling
+  [kpt(-1730,1100),kpt(-1130,1100),kpt(-530,1100),kpt(300,900),kpt(900,900),kpt(1290,900),kpt(1290,1500)].forEach(q=>{const p=m(q);spot(B,p[0],p[1],ceilLiv(p[0],p[1]))});
   // soffit faces +2.650 → +2.950 along the whole drop contour; FK-1 slot grille 1500×25 on the hall edge
-  DROP_EDGES.forEach(ch=>{const E=ch.map(m);for(let i=0;i<E.length-1;i++){const a=E[i],b=E[i+1];const f=edgeFrame(a,b,mp(LIV_HIGH));B.quad('ceil','a',[[a[0],2.65,a[1]],[b[0],2.65,b[1]],[b[0],2.95,b[1]],[a[0],2.95,a[1]]],[f.n[0],0,f.n[1]])}});
-  {const a=m([12148,7940]),b=m([15332,9778]),L=Math.hypot(b[0]-a[0],b[1]-a[1]),d=[(b[0]-a[0])/L,(b[1]-a[1])/L],f=edgeFrame(a,b,mp(LIV_HIGH)),t0=1.98,P=(t,y)=>[a[0]+d[0]*t+f.n[0]*0.003,y,a[1]+d[1]*t+f.n[1]*0.003];
-   B.quad('plinth','a',[P(t0,2.785),P(t0+1.5,2.785),P(t0+1.5,2.81),P(t0,2.81)],[f.n[0],0,f.n[1]])}
+  DROP_EDGES.forEach(ch=>{const E=ch.map(m);for(let i=0;i<E.length-1;i++){const a=E[i],b=E[i+1];const f=edgeFrame(a,b,mp(PT1_LIVING));B.quad('ceil','a',[[a[0],2.65,a[1]],[b[0],2.65,b[1]],[b[0],2.95,b[1]],[a[0],2.95,a[1]]],[f.n[0],0,f.n[1]])}});
+  // FK-1 slot grille 1500×25 on the soffit edge, on the entrance axis (u −3482…−1982 on v 1306)
+  {const a=m([14143,9093]),b=m([15443,9843]),f=edgeFrame(a,b,mp(PT1_LIVING)),P=(q,y)=>[q[0]+f.n[0]*0.003,y,q[1]+f.n[1]*0.003];
+   B.quad('plinth','a',[P(a,2.785),P(b,2.785),P(b,2.81),P(a,2.81)],[f.n[0],0,f.n[1]])}
   {const q=rotRectM(13.424,9.332,0.6,0.3,30);B.flat('grilleW','c2.65',q,2.647,false);const h=rotRectM(14.13,9.97,0.6,0.6,30);B.flat('plinth','c2.65',h,2.649,false);B.flat('ceil','c2.65',rotRectM(14.13,9.97,0.59,0.59,30),2.6485,false)}
   B.zone='hall';
   // --- hall: mirror on the (now 1093 mm) plane right of the entrance, storage pencils, bench, entrance door
@@ -771,9 +770,9 @@ ROOMS.corr={name:'Коридор',H:2.65,clear:1.1,poly:[[9978,5882],[13508,5882
    B.box(sm,'a',12.148+0.15,7.94-0.26,0.6,0.022,-60,0.004,2.606);B.box('graphite','a',12.148+0.27,7.94-0.47,0.016,0.02,-60,0.9,1.3);
    B.light([11.3,1.8,7.6],'#FFE7C6',0.3)}
   // FK-2 / FK-3 inspection hatches 600×600 in the corridor drop ceiling
-  for(const[x,z]of[[12.8,6.31],[10.6,6.31]]){B.flat('plinth','c2.65',rotRectM(x,z,0.6,0.6,0),2.649,false);B.flat('ceil','c2.65',rotRectM(x,z,0.59,0.59,0),2.6485,false)}
+  for(const[x,z]of[[12.9,6.8],[11.0,6.8]]){B.flat('plinth','c2.65',rotRectM(x,z,0.6,0.6,0),2.649,false);B.flat('ceil','c2.65',rotRectM(x,z,0.59,0.59,0),2.6485,false)}
   art(B,R,[10240,7042],[11240,7042],1.0,2.1,'art2','graphite');
-  [10.786,11.959,13.132].forEach(x=>spot(B,x,6.432,H));[10.4,11.4].forEach(x=>nightL(B,x,7.035,0));
+  [10.566,11.743,12.920].forEach(x=>spot(B,x,6.462,H));[10.4,11.4].forEach(x=>nightL(B,x,7.035,0));
   B.light([11.7,2.2,6.4],'#FFE6C0',0.45);B.light([10.7,2.0,6.8],'#FFE6C0',0.25);
  }};
 
@@ -876,8 +875,8 @@ function towelWarmer(B,E,s0,w,y0,y1,base,towel){const n=Math.round((y1-y0)/0.13)
  wbox(B,E,s0,s0+0.022,y0-0.02,y1+0.04,base,base+0.06,'bm');wbox(B,E,s0+w-0.022,s0+w,y0-0.02,y1+0.04,base,base+0.06,'bm');
  if(towel)wbox(B,E,s0+0.06,s0+w-0.06,y0+0.15,y1-0.1,base+0.055,base+0.085,towel)}
 
-ROOMS.bath1={name:'Санузел 1 (мастер)',H:2.80,gaps:()=>doorsOpen?[{p0:[8800,5802],p1:[9680,5802],top:2100}]:[],clear:1.5,poly:[[7898,3735],[11020,3735],[11020,4912],[10072,4912],[10072,4992],[10442,4992],[10442,5802],[7898,5802]],
- floors:[{poly:[[7898,3735],[11020,3735],[11020,4912],[10072,4912],[10072,4992],[10442,4992],[10442,5802],[7898,5802]],mat:'tileF',o:[7998,3835]}],
+ROOMS.bath1={name:'Санузел 1 (мастер)',H:2.80,gaps:()=>doorsOpen?[{p0:[8800,5802],p1:[9680,5802],top:2100}]:[],clear:1.5,poly:[[7898,3735],[11020,3735],[11020,4912],[9992,4912],[9992,4992],[10442,4992],[10442,5802],[7898,5802]],
+ floors:[{poly:[[7898,3735],[11020,3735],[11020,4912],[9992,4912],[9992,4992],[10442,4992],[10442,5802],[7898,5802]],mat:'tileF',o:[7998,3835]}],
  wallMat:()=>'tileW',key:{d:[0.2,-0.95,0.25],c:'#FFF4E6',k:0.25},
  build(B,R){const H=R.H;
   const T=mp(rect2(7898,3735,8698,5535));B.prism('white','a',T,0,0.58,{top:false});
@@ -905,12 +904,12 @@ ROOMS.bath1={name:'Санузел 1 (мастер)',H:2.80,gaps:()=>doorsOpen?[{
   B.box('bm','a',10.238,5.397,0.008,0.24,0,0.95,1.1);B.blob(9.95,5.397,0.7,0.5,0);
   const sw1=W(R,[9680,5802],[10242,5802]);if(sw1){const E=sw1.E,sx=(x,z)=>(x-E.a[0])*E.d[0]+(z-E.a[1])*E.d[1];towelWarmer(B,E,Math.min(sx(9.765,5.802),sx(10.215,5.802)),0.45,0.9,1.7,0,'towel')}
   if(!doorsOpen)door(B,R,[8800,5802],[9680,5802],{h:2.1});
-  spot(B,9.245,4.55,H,0.04);spot(B,9.245,5.2,H,0.04);B.box('glowSoft','a',11.005,3.75,0.012,0.012,0,0.3,2.1);
+  spot(B,9.2,4.55,H,0.04);spot(B,9.2,5.2,H,0.04);B.box('glowSoft','a',11.005,3.75,0.012,0.012,0,0.3,2.1);
   B.light([9.2,2.3,4.6],'#FFE7C6',0.45);B.light([10.5,2.2,4.3],'#FFE7C6',0.2);
  }};
 
-ROOMS.bath2={name:'Санузел 2 (гостевой)',H:2.80,clear:1.5,poly:[[11489,3712],[13508,3712],[13508,5742],[11939,5742],[11939,4912],[11095,4912],[11095,4184],[11489,4184]],
- floors:[{poly:[[11489,3712],[13508,3712],[13508,5742],[11939,5742],[11939,4912],[11095,4912],[11095,4184],[11489,4184]],mat:'tileF',o:[11589,3812]}],
+ROOMS.bath2={name:'Санузел 2 (гостевой)',H:2.80,clear:1.5,poly:[[11489,3712],[13508,3712],[13508,5802],[11939,5802],[11939,4912],[11095,4912],[11095,4184],[11489,4184]],
+ floors:[{poly:[[11489,3712],[13508,3712],[13508,5802],[11939,5802],[11939,4912],[11095,4912],[11095,4184],[11489,4184]],mat:'tileF',o:[11589,3812]}],
  wallMat:()=>'tileW',key:{d:[-0.2,-0.95,0.25],c:'#FFF4E6',k:0.25},
  build(B,R){const H=R.H;
   // kabanchik accent: only the shower wall with the thermostat (east)
@@ -938,9 +937,9 @@ ROOMS.bath2={name:'Санузел 2 (гостевой)',H:2.80,clear:1.5,poly:[[
   B.prism('white','a',mp(rect2(11295,4388,11765,4708)),0.32,0.42,{bottom:true});B.cyl('white','a',11.765,4.548,0.16,0.32,0.42,20,{bottom:true});
   B.box('bm','a',11.299,4.548,0.008,0.24,0,0.95,1.1);B.blob(11.55,4.548,0.7,0.5,0);
   // towel warmer: west wall (new laundry wall) right by the door, on the left when entering
-  const sw=W(R,[11939,4992],[11939,5742]);if(sw){const E=sw.E,sx=(x,z)=>(x-E.a[0])*E.d[0]+(z-E.a[1])*E.d[1];towelWarmer(B,E,Math.min(sx(11.939,5.15),sx(11.939,5.65)),0.5,0.9,1.7,0,'towel2')}
-  door(B,R,[12038,5742],[12918,5742],{h:2.1});
-  spot(B,12.5,5.1,H,0.04);spot(B,11.6,4.55,H,0.04);B.box('glowSoft','a',13.495,3.727,0.012,0.012,0,0.3,2.1);
+  const sw=W(R,[11939,4992],[11939,5802]);if(sw){const E=sw.E,sx=(x,z)=>(x-E.a[0])*E.d[0]+(z-E.a[1])*E.d[1];towelWarmer(B,E,Math.min(sx(11.939,5.15),sx(11.939,5.65)),0.5,0.9,1.7,0,'towel2')}
+  door(B,R,[12038,5802],[12918,5802],{h:2.1});
+  spot(B,12.5,5.15,H,0.04);spot(B,11.565,4.548,H,0.04);B.box('glowSoft','a',13.495,3.727,0.012,0.012,0,0.3,2.1);
   B.light([12.5,2.3,5.0],'#FFE7C6',0.4);B.light([12.9,2.2,4.1],'#FFE7C6',0.2);
  }};
 
@@ -951,7 +950,7 @@ const PALETTES=[
   set:{hall:'#CDBBA6',wall:'#ECE6DC',front:'#EEE9E0',door:'#EBE5DA',grille:'#ECE6DC',ceil:'#F6F3EE',acc:'#C9B6A1',accFlat:'#D4C4B1',lower:'#E7DDC9',upper:'#E7DDC9',antresol:'#E7DDC9',column:'#E7DDC9',
    tall:'#7E5D45',quartz:'#F1ECE4',kplinth:'#1A1918',handle:'#151515',tileHall:'#D5CBBC',tileW:'#E1D8CB',tileF:'#A99A87',kab:'#E9DDC8',bm:'#2A2826'},
   tex:{tall:'oakd',quartz:'marble'},
-  list:[['tall','Пеналы прихожей, короб у К1, стенка зеркала, портал входа','«Фабио» дуб Каселла коричневый; короб и стенка — фальшпанели в том же декоре'],['lower','Ниша: нижние модули, навесные, антресоли','«Маттео лайт 2», МДФ крем'],['quartz','Столешница и фартук','«Мрамор Олесунд беж new 19»'],['kplinth','Цоколь','чёрный'],['handle','Ручки','накладные чёрные — нижние модули и пеналы; навесные и антресоли — без ручек (скрытые)'],['wall','Стены, двери','тёплый светлый ≈ NCS S 0804-Y20R'],['acc','Стена ТВ, изголовье','латте ≈ S 2010-Y30R, известковая краска'],['hall','Прихожая','≈ S 2010-Y40R'],['tileW','Санузлы','керамогранит 600×600 тёплый беж; кабанчик — крем'],['bm','Металл санузлов','матовый чёрный']]},
+  list:[['tall','Пеналы прихожей, короб у К1, стенка зеркала, портал входа','«Фабио» дуб Каселла коричневый; короб и стенка — фальшпанели в том же декоре'],['lower','Ниша: нижние модули и навесные','«Маттео лайт 2», МДФ крем'],['quartz','Столешница и фартук','HPL «мрамор Олесунд беж new 19»'],['kplinth','Цоколь','чёрный'],['handle','Ручки','накладные чёрные — нижние модули и пеналы; навесные и антресоли — без ручек (скрытые)'],['wall','Стены, двери','тёплый светлый ≈ NCS S 0804-Y20R'],['acc','Стена ТВ, изголовье','латте ≈ S 2010-Y30R, известковая краска'],['hall','Прихожая','≈ S 2010-Y40R'],['tileW','Санузлы','керамогранит 600×600 тёплый беж; кабанчик — крем'],['bm','Металл санузлов','матовый чёрный']]},
  {id:'mocha',name:'Мокко и кокосовое молоко',
   text:'Тёплая и самая «уютная» из палитр. Стены — кокосовое молоко, тёмный мокко собран в нижнем ярусе кухни и колонне холодильника, светлый мокко — на стене ТВ и изголовье. Верхние шкафы и антресоль — в цвет стен, поэтому кухня не давит на потолок. Металл в санузлах — матовая латунь.',
   set:{hall:'#BCA894',wall:'#E9E1D4',front:'#ECE5D9',door:'#E7DFD2',grille:'#E9E1D4',ceil:'#F4F0E9',acc:'#C9BBAA',accFlat:'#D0C3B3',lower:'#6B5C52',upper:'#EEE7DB',antresol:'#EEE7DB',column:'#6B5C52',tileHall:'#CDBFAE',tileW:'#DDD2C3',tileF:'#A39584',kab:'#7C6B5E',bm:'#B39A70'},
@@ -1039,7 +1038,7 @@ const SCENES={
    {name:'Коридор: мастер-блок',r:'corr',wall:[[9978,5882],[9978,7042]]},
    {name:'Кладовая (откройте кнопкой)',free:{eye:[13200,6650,1650],target:[11300,8050,1100],fov:62}},
    {name:'Постирочная',r:'laundry',wall:[[10522,4992],[11859,4992]],fov:62,clear:1.35}],
-  concept:'Одно пространство от окна гостиной до конца коридора. Кухня перестроена: от зеркала вправо — пенал с духовым шкафом и СВЧ (чёрные), пенал со встроенным холодильником, оба глубиной 600; короб у К1 заподлицо с ними и со скосом к нише. В нише — мойка, ПММ, столешница до угла и вдоль правой стены, варочная 600 в 600 от торцевой стены; навесные шкафы 350 и антресоли 600 до +2.600. Потолок ГКЛ +2.650 над прихожей, коридором и по всему периметру кухни (зазор 50 над мебелью), над гостиной натяжной +2.950. Остров пока скрыт. Диван и обеденную группу можно двигать: кнопка «Двигать мебель».',
+  concept:'Одно пространство от окна гостиной до конца коридора. Кухня по альбому v16: от зеркала вправо — пенал со встроенным холодильником, пенал с духовым шкафом и СВЧ (чёрные), оба глубиной 600; короб у К1 заподлицо с ними, со скосом к нише и ревизионной дверцей Р-1. В нише — мойка у К1, ПММ, ящики 390 и угол; на правой стене — тумба 800 с ящиками и варочной 600 у торцевой стены, дверца 400 в угол. Навесные шкафы 350 от +1.500 до +2.600, антресолей нет; над варочной — шкаф 800 со встроенной вытяжкой. Потолок ГКЛ +2.650 над прихожей, коридором и кухней с рабочей зоной — кромка одной прямой по стыку паркета и плитки; над гостиной натяжной +2.950. Остров пока скрыт. Диван и обеденную группу можно двигать: кнопка «Двигать мебель».',
   mats:[['wall','Стены, двери','краска матовая, класс 1–2 по мокрому истиранию; МДФ под покраску'],['hall','Стены прихожей','краска того же класса, средний тон палитры'],['acc','Стена ТВ','известковая краска с лёгкой фактурой'],['oakFloor','Пол','инженерная доска, дуб натур'],['tileHall','Кухня, прихожая, постирочная','керамогранит 600×600 матовый'],['lower','Низ кухни','матовые фасады'],['upper','Верх кухни','матовые фасады без ручек'],['antresol','Антресоль','до потолка'],['quartz','Столешница и фартук','кварцевый агломерат'],['graphite','Ручки, профили, подвесы','матовый графит']]},
  bed1:{tab:'Спальня 1 и гардероб',name:'Мастер-блок: спальня 1, гардероб, санузел 1',area:'14,8 + 2,5 + 5,9 м²',rooms:['bed1','ward','bath1'],doors:true,
   views:[
@@ -1066,7 +1065,7 @@ const SCENES={
   mats:[['tileW','Стены','керамогранит 600×600 матовый'],['tileF','Пол','керамогранит 600×600, R10'],['kab','Душ, задняя стена','кабанчик 7,5×15, глянец, прямая раскладка'],['oak','Тумба','шпон или HPL под дуб'],['bm','Металл','смесители, термостат, полотенцесушитель, профиль стекла']]},
  bath2:{tab:'Санузел 2',name:'Санузел 2 (гостевой)',area:'4,0 м²',rooms:['bath2'],
   views:[{name:'Общий вид',ov:{az:[-0.35,1],el:1.2,dist:0.95}},{name:'Душ и полки (север)',wall:[[11489,3712],[13508,3712]],fov:66},{name:'Тумба и душ (восток)',wall:[[13508,3712],[13508,5742]]},
-   {name:'Унитаз и люк сантехузла (запад)',free:{eye:[13350,4550,1700],target:[11200,4500,1000],fov:62}},{name:'Полотенцесушитель у двери (запад)',free:{eye:[13350,4700,1550],target:[11939,5400,1150],fov:66}},{name:'Дверь (юг)',wall:[[11939,5742],[13508,5742]]}],
+   {name:'Унитаз и люк сантехузла (запад)',free:{eye:[13350,4550,1700],target:[11200,4500,1000],fov:62}},{name:'Полотенцесушитель у двери (запад)',free:{eye:[13350,4700,1550],target:[11939,5400,1150],fov:66}},{name:'Дверь (юг)',wall:[[11939,5802],[13508,5802]]}],
   concept:'Та же база 600×600, что в мастер-санузле. Кабанчик — одна стена душа с термостатом (≈ 2,5 м²). Отдельного техузла нет: унитаз на его месте, на инсталляции; над ней — короб сантехузла (коллекторы, аквастоп, фильтры, бойлер 50 л) с невидимым люком под плитку. Душ 1073×900, 600 от унитаза до стекла. Полки 410×410 — дуб, открыты к душу. Полотенцесушитель — слева при входе.',
   mats:[['tileW','Стены','керамогранит 600×600'],['tileF','Пол','керамогранит 600×600, R10'],['kab','Душ, стена с термостатом','кабанчик 7,5×15, глянец'],['tileW','Люк сантехузла','≈ 600×1200 под плитку, скрытый, нажимной замок'],['oak','Тумба, полки','дуб, влагостойкое покрытие'],['bm','Металл','по палитре']]}
 };
@@ -1135,7 +1134,7 @@ function sunPos(N,t){const rad=Math.PI/180,phi=55.75*rad,dec=23.44*Math.sin(2*Ma
  let ca=(Math.sin(dec)-sh*Math.sin(phi))/(Math.cos(h)*Math.cos(phi));ca=Math.max(-1,Math.min(1,ca));let A=Math.acos(ca)/rad;if(H>0)A=360-A;
  return{h:h/rad,A,dir:[Math.cos(h)*Math.sin(A*rad),Math.sin(h),-Math.cos(h)*Math.cos(A*rad)]}}
 const smooth=(a,b,x)=>{const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t)};
-const ZONES=[['living','Гостиная','трек, подсветка стеллажей'],['kitchen','Кухня','споты, подсветка столешницы и антресолей, подвесы над островом'],['dining','Столовая','подвес над столом'],['hall','Прихожая и кладовая','споты, подсветка кладовой'],['corr','Коридор','споты'],['laundry','Постирочная','ленты в нише'],
+const ZONES=[['living','Гостиная','трек, подсветка стеллажей'],['kitchen','Кухня','споты, подсветка под навесными, подвесы над островом'],['dining','Столовая','подвес над столом'],['hall','Прихожая и кладовая','споты, подсветка кладовой'],['corr','Коридор','споты'],['laundry','Постирочная','ленты в нише'],
  ['bath1','Санузел 1','споты, зеркало, ниши'],['bath2','Санузел 2','споты, зеркало, душ'],['bed1','Спальня 1','основной: плафон и споты у входа · подсветка: бра и подсветка мебели',1],['ward','Гардероб','спот и подсветка полок'],['bed2','Спальня 2 / кабинет','основной: плафон · подсветка: настольная лампа и скамья',1],['night','Ночники','у пола в коридоре, прихожей, спальне 1']];
 let ZST={};const presetZ=k=>{const o={};ZONES.forEach(([z])=>o[z]=z==='night'?(k==='night'?'all':'off'):(k==='night'||k==='off'?'off':k));return o};ZST=presetZ('all');
 const zoneLit=(z,cat)=>{const st=ZST[z]||'all';if(z==='night'||cat==='night')return st!=='off';return st==='all'||st===cat};
@@ -1227,7 +1226,7 @@ const CODES={
  'П-3':['tileF','Пол санузлов','керамогранит 600×600 R10, на тон темнее стен; тёплый пол'],
  'Ф-4':['tall','Пеналы с техникой и холодильником, короб у К1','по палитре; в «Под выбранную кухню» — «Фабио» дуб Каселла коричневый'],
  'Ф-1':['lower','Низ кухни в нише','МДФ матовая эмаль или ЛДСП с матовым покрытием, тёмный тон палитры'],
- 'Ф-2':['upper','Навесные шкафы 350 и антресоли 600 до +2.600','МДФ матовая эмаль, без ручек; антресоль — по палитре'],
+ 'Ф-2':['upper','Навесные шкафы 350 от +1.500 до +2.600 (антресолей нет)','МДФ матовая эмаль, без ручек'],
  'Ф-3':['front','Межкомнатные двери, створки кладовой, шкафы, пеналы','МДФ под покраску в цвет стен (в режиме «Прихожая в одном цвете» — в цвет прихожей)'],
  'К-1':['quartz','Столешница и фартук','кварцевый агломерат 20 мм, светлый, почти без прожилок'],
  'Д-0':['lower','Входная дверь','полотно существующее белое, не перекрашивается; откосы и портал 120 мм — в тёмном тоне кухни (в режиме «Прихожая в одном цвете» — в цвете прихожей)'],
